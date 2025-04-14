@@ -1,37 +1,74 @@
+# === VARIABLES GLOBALES ===
 CXX = g++
-LEX = flex
-YACC = bison
+FLEX = flex
+BISON = bison
+
 CXXFLAGS = -Wall -std=c++17
+OUT_DIR = tmp
+SRC_DIR = src
+LEXER_DIR = $(SRC_DIR)/lexer
+PARSER_DIR = $(SRC_DIR)/parser
 
-LEX_SRC = lexer.l
-YACC_SRC = parser.y
-LEX_OUT = lex.yy.c
-YACC_OUT = parser.tab.c parser.tab.h
-SRC = main.cpp
-OBJ = $(SRC:.cpp=.o) $(LEX_OUT:.c=.o) $(YACC_OUT:.c=.o)
+LEX_SRC = $(LEXER_DIR)/lexer.l
+YACC_SRC = $(PARSER_DIR)/parser.y
+MAIN_SRC = $(SRC_DIR)/main.cpp
 
-BUILD_DIR = build
+LEX_C = $(OUT_DIR)/lex.yy.c
+YACC_C = $(OUT_DIR)/parser.tab.c
+YACC_H = $(OUT_DIR)/parser.tab.h
 
-build: $(OBJ)
-	mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -o $(BUILD_DIR)/hulk_compiler $(OBJ)
+LEX_OBJ = $(OUT_DIR)/lex.yy.o
+YACC_OBJ = $(OUT_DIR)/parser.tab.o
+MAIN_OBJ = $(OUT_DIR)/main.o
+
+OBJS = $(MAIN_OBJ) $(LEX_OBJ) $(YACC_OBJ)
+EXEC = $(OUT_DIR)/hulk-compiler
+SCRIPT_FILE = $(OUT_DIR)/script.hulk
+
+# === TARGETS ===
+
+all: build
+
+build: clean $(OUT_DIR) $(EXEC) $(SCRIPT_FILE)
+	@# Mover tmp -> build para evitar conflictos con el nombre del target
+	@mv $(OUT_DIR) build
+	@echo "✅ Build completo. Ejecutable en $(EXEC)"
 
 run: build
-	@echo "Ejecutar compilador aquí más adelante"
-
-$(LEX_OUT): $(LEX_SRC)
-	$(LEX) -o $@ $<
-
-$(YACC_OUT): $(YACC_SRC)
-	$(YACC) -d $<
-
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-%.o: %.c
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	@echo "🚀 Compilador listo. Agrega ejecución en esta receta si lo deseas."
 
 clean:
-	rm -rf $(BUILD_DIR) *.o $(LEX_OUT) $(YACC_OUT)
+	rm -rf build
+	@echo "🧹 Proyecto limpiado."
 
-.PHONY: build run clean
+# === REGLAS DE COMPILACIÓN ===
+
+$(OUT_DIR):
+	mkdir -p $(OUT_DIR)
+
+$(EXEC): $(OBJS)
+	$(CXX) $(CXXFLAGS) -o $(EXEC) $(OBJS)
+
+# Generación de objetos
+$(MAIN_OBJ): $(MAIN_SRC)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(LEX_OBJ): $(LEX_C)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(YACC_OBJ): $(YACC_C)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Flex y Bison
+$(LEX_C): $(LEX_SRC)
+	$(FLEX) -o $@ $<
+
+$(YACC_C) $(YACC_H): $(YACC_SRC)
+	$(BISON) -d -o $(YACC_C) $(YACC_SRC)
+
+# Verificar o crear script.hulk
+$(SCRIPT_FILE):
+	@if [ ! -f "$(SCRIPT_FILE)" ]; then touch "$(SCRIPT_FILE)"; fi
+
+# === META ===
+.PHONY: all build run clean

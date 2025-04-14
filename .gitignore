@@ -1,0 +1,27 @@
+# === Ignorar carpeta de compilación ===
+build/
+
+# === Archivos temporales y de backup ===
+*.o
+*.out
+*.swp
+*~
+*.tmp
+.DS_Store
+
+# === Archivos generados por Flex/Bison ===
+lex.yy.c
+parser.tab.c
+parser.tab.h
+
+# === Ejecutables (por si se compilan fuera de build) ===
+hulk-compiler
+*.exe
+
+# === Archivos de prueba/historial temporal ===
+*.log
+*.trace
+
+# === Entornos de desarrollo (VSCode, JetBrains, etc.) ===
+.vscode/
+.idea/
