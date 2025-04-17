@@ -3,8 +3,8 @@ CXX = g++
 FLEX = flex
 BISON = bison
 
-CXXFLAGS = -Wall -std=c++17
-OUT_DIR = tmp
+CXXFLAGS = -Wall -std=c++17 -Isrc -Isrc/ast
+OUT_DIR = build
 SRC_DIR = src
 LEXER_DIR = $(SRC_DIR)/lexer
 PARSER_DIR = $(SRC_DIR)/parser
@@ -21,24 +21,26 @@ LEX_OBJ = $(OUT_DIR)/lex.yy.o
 YACC_OBJ = $(OUT_DIR)/parser.tab.o
 MAIN_OBJ = $(OUT_DIR)/main.o
 
-OBJS = $(MAIN_OBJ) $(LEX_OBJ) $(YACC_OBJ)
-EXEC = $(OUT_DIR)/hulk-compiler
-SCRIPT_FILE = $(OUT_DIR)/script.hulk
+AST_SRC = $(SRC_DIR)/ast/ASTNode.cpp
+AST_OBJ = $(OUT_DIR)/ASTNode.o
+
+OBJS = $(MAIN_OBJ) $(LEX_OBJ) $(YACC_OBJ) $(AST_OBJ)
+EXEC = build/hulk-compiler
+SCRIPT_FILE = build/script.hulk
 
 # === TARGETS ===
 
-all: build
+all: compile
 
-build: clean $(OUT_DIR) $(EXEC) $(SCRIPT_FILE)
-	@# Mover tmp -> build para evitar conflictos con el nombre del target
-	@mv $(OUT_DIR) build
+compile: $(OUT_DIR) $(EXEC) $(SCRIPT_FILE)
 	@echo "✅ Build completo. Ejecutable en $(EXEC)"
 
-run: build
-	@echo "🚀 Compilador listo. Agrega ejecución en esta receta si lo deseas."
+run: compile
+	@echo "🚀 Ejecutando script.hulk y mostrando AST..."
+	@$(EXEC) < $(SCRIPT_FILE)
 
 clean:
-	rm -rf build
+	rm -rf build tmp
 	@echo "🧹 Proyecto limpiado."
 
 # === REGLAS DE COMPILACIÓN ===
@@ -60,11 +62,16 @@ $(YACC_OBJ): $(YACC_C)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Flex y Bison
-$(LEX_C): $(LEX_SRC)
+$(LEX_C): $(LEX_SRC) $(YACC_H)
 	$(FLEX) -o $@ $<
+
 
 $(YACC_C) $(YACC_H): $(YACC_SRC)
 	$(BISON) -d -o $(YACC_C) $(YACC_SRC)
+
+# AST
+$(AST_OBJ): $(AST_SRC)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Verificar o crear script.hulk
 $(SCRIPT_FILE):
