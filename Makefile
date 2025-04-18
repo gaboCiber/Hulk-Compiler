@@ -27,7 +27,15 @@ AST_OBJ = $(OUT_DIR)/ASTNode.o
 SEMANTIC_SRC = $(SRC_DIR)/semantic/SemanticChecker.cpp
 SEMANTIC_OBJ = $(OUT_DIR)/SemanticChecker.o
 
-OBJS = $(MAIN_OBJ) $(LEX_OBJ) $(YACC_OBJ) $(AST_OBJ) $(SEMANTIC_OBJ)
+LLVM_CONFIG = llvm-config
+LLVM_CXXFLAGS = $(shell $(LLVM_CONFIG) --cxxflags)
+LLVM_LDFLAGS  = $(shell $(LLVM_CONFIG) --ldflags --libs core) -Wno-unused-command-line-argument
+
+
+CODEGEN_SRC = $(SRC_DIR)/codegen/LLVMCodeGenVisitor.cpp
+CODEGEN_OBJ = $(OUT_DIR)/LLVMCodeGenVisitor.o
+
+OBJS = $(MAIN_OBJ) $(LEX_OBJ) $(YACC_OBJ) $(AST_OBJ) $(SEMANTIC_OBJ) $(CODEGEN_OBJ)
 
 EXEC = build/hulk-compiler
 SCRIPT_FILE = build/script.hulk
@@ -53,7 +61,7 @@ $(OUT_DIR):
 	mkdir -p $(OUT_DIR)
 
 $(EXEC): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $(EXEC) $(OBJS)
+	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) -o $(EXEC) $(OBJS) $(LLVM_LDFLAGS)
 
 # Generación de objetos
 $(MAIN_OBJ): $(MAIN_SRC)
@@ -80,6 +88,10 @@ $(AST_OBJ): $(AST_SRC)
 # Semantic
 $(SEMANTIC_OBJ): $(SEMANTIC_SRC)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# LLVM Code Generation
+$(CODEGEN_OBJ): $(CODEGEN_SRC)
+	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) -c $< -o $@
 
 # Verificar o crear script.hulk
 $(SCRIPT_FILE):

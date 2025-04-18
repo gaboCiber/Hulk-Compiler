@@ -1,0 +1,27 @@
+#pragma once
+
+#include "ast/Visitor.hpp"
+
+#include <llvm/IR/LLVMContext.h>  // ✅ define llvm::LLVMContext
+#include <llvm/IR/IRBuilder.h>    // ✅ define llvm::IRBuilder
+#include <llvm/IR/Module.h>       // ✅ define llvm::Module
+#include <llvm/IR/Value.h>        // ✅ define llvm::Value
+
+#include <string>
+#include <memory>  // para std::unique_ptr
+
+class LLVMCodeGenVisitor : public Visitor {
+public:
+    llvm::LLVMContext context;
+    llvm::IRBuilder<> builder;
+    std::unique_ptr<llvm::Module> module;
+
+    llvm::Value* result;
+
+    LLVMCodeGenVisitor(const std::string& moduleName);
+
+    void visit(FloatNode& node) override;
+    void visit(BinOpNode& node) override;
+
+    llvm::Module* getModule() const;
+};
