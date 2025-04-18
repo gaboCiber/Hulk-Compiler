@@ -24,7 +24,11 @@ MAIN_OBJ = $(OUT_DIR)/main.o
 AST_SRC = $(SRC_DIR)/ast/ASTNode.cpp
 AST_OBJ = $(OUT_DIR)/ASTNode.o
 
-OBJS = $(MAIN_OBJ) $(LEX_OBJ) $(YACC_OBJ) $(AST_OBJ)
+SEMANTIC_SRC = $(SRC_DIR)/semantic/SemanticChecker.cpp
+SEMANTIC_OBJ = $(OUT_DIR)/SemanticChecker.o
+
+OBJS = $(MAIN_OBJ) $(LEX_OBJ) $(YACC_OBJ) $(AST_OBJ) $(SEMANTIC_OBJ)
+
 EXEC = build/hulk-compiler
 SCRIPT_FILE = build/script.hulk
 
@@ -71,6 +75,10 @@ $(YACC_C) $(YACC_H): $(YACC_SRC)
 
 # AST
 $(AST_OBJ): $(AST_SRC)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Semantic
+$(SEMANTIC_OBJ): $(SEMANTIC_SRC)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Verificar o crear script.hulk
