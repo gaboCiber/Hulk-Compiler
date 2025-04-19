@@ -9,6 +9,37 @@ void TypeCheckerVisitor::visit(BoolNode& node) {
     lastType = Type::Bool;
 }
 
+void TypeCheckerVisitor::visit(UnaryOpNode& node) {
+    // Primero chequea el hijo
+    node.node->accept(*this);
+    Type childT = lastType;
+    if (errorFlag) return;  // corto si ya hubo error
+
+    // Ahora, según el operador:
+    if (node.op == "-") {
+        // Negación: solo float
+        if (childT != Type::Float) {
+            errorFlag = true;
+            errorMsg = "Error semántico: operador '" + node.op + "' requiere un operando de tipo float.";
+            return;
+        }
+        lastType = Type::Float;
+    }
+    else if (node.op == "!") {
+        // Negación lógica: solo bool
+        if (childT != Type::Bool) {
+            errorFlag = true;
+            errorMsg = "Error semántico: operador '" + node.op + "' requiere un operando booleano.";
+            return;
+        }
+        lastType = Type::Bool;
+    }
+    else {
+        errorFlag = true;
+        errorMsg = "Error semántico: operador desconocido '" + node.op + "'.";
+    }
+}
+
 void TypeCheckerVisitor::visit(BinOpNode& node) {
     // Primero chequea el hijo izquierdo
     node.left->accept(*this);

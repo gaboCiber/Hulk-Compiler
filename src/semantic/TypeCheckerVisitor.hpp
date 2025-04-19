@@ -10,6 +10,7 @@ public:
     // Visitor interface
     void visit(FloatNode& node) override;
     void visit(BoolNode& node) override;
+    void visit(UnaryOpNode& node) override;
     void visit(BinOpNode& node) override;
 
     bool hasError() const { return errorFlag; }

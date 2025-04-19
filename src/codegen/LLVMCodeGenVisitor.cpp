@@ -31,6 +31,21 @@ void LLVMCodeGenVisitor::visit(BoolNode& node) {
     result = llvm::ConstantFP::get(context, llvm::APFloat(node.value ? 1.0f : 0.0f));
 }
 
+void LLVMCodeGenVisitor::visit(UnaryOpNode& node) {
+    node.node->accept(*this);
+    llvm::Value* operand = result;
+
+    if (node.op == "-") {
+        result = builder.CreateFNeg(operand, "negtmp");
+    }
+    else if (node.op == "!") {
+        // Negación lógica: convertimos de float a i1
+        llvm::Value* cmp = builder.CreateFCmpONE(operand, llvm::ConstantFP::get(context, llvm::APFloat(0.0f)), "cmptmp");
+        llvm::Value* notVal = builder.CreateNot(cmp, "nottmp");
+        result = builder.CreateUIToFP(notVal, builder.getFloatTy(), "bool2float");
+    }
+}
+
 void LLVMCodeGenVisitor::visit(BinOpNode& node) {
     node.left->accept(*this);
     llvm::Value* lhs = result;

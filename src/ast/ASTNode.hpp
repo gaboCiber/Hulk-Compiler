@@ -28,6 +28,16 @@ public:
     void accept(Visitor& visitor) override;
 };
 
+class UnaryOpNode : public ASTNode {
+public:
+    std::string op;
+    ASTNode* node;
+
+    UnaryOpNode(const std::string& o, ASTNode* n);
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;
+
+}; 
 
 class BinOpNode : public ASTNode {
 public:

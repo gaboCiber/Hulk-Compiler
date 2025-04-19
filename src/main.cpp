@@ -1,6 +1,5 @@
 #include <iostream>
 #include "ast/ASTNode.hpp"
-#include "semantic/SemanticChecker.hpp"
 #include <fstream>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/FileSystem.h>

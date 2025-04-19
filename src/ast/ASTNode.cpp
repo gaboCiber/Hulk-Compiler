@@ -23,6 +23,19 @@ void BoolNode::accept(Visitor& visitor) {
     visitor.visit(*this);
 }
 
+// UnaryOpNode implementation
+UnaryOpNode::UnaryOpNode(const std::string& o, ASTNode* n)
+    : op(o), node(n) {}
+
+void UnaryOpNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "UnaryOp(" << op << ")\n";
+    node->print(indent + 2);
+}
+
+void UnaryOpNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
 
 // BinOpNode implementation
 BinOpNode::BinOpNode(const std::string& o, ASTNode* l, ASTNode* r)

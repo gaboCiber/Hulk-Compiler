@@ -27,6 +27,7 @@ false                 { yylval.bval = false; return BOOL; }
 "!="                  return NOEQUAL;
 "&"                   return AND;
 "|"                   return OR;
+"!"                   return NOT;
 .                     return yytext[0];
 
 %%
