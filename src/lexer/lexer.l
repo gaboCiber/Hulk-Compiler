@@ -6,9 +6,9 @@
 
 %%
 
-[ \t\n\r]+             ;  // Ignorar espacios
-[0-9]+\.[0-9]+         { yylval.fval = atof(yytext); return FLOAT; }
-[0-9]+                 { yylval.fval = atof(yytext); return FLOAT; }
+[ \t\n\r]+            ;  // Ignorar espacios
+[0-9]+\.[0-9]+        { yylval.fval = atof(yytext); return FLOAT; }
+[0-9]+                { yylval.fval = atof(yytext); return FLOAT; }
 true                  { yylval.bval = true; return BOOL; }
 false                 { yylval.bval = false; return BOOL; }
 "+"                   return PLUS;
@@ -25,6 +25,8 @@ false                 { yylval.bval = false; return BOOL; }
 "<="                  return LESS_THAN;
 "=="                  return EQUAL;
 "!="                  return NOEQUAL;
+"&"                   return AND;
+"|"                   return OR;
 .                     return yytext[0];
 
 %%

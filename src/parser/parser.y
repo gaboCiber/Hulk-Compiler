@@ -21,11 +21,14 @@
 
 %token <fval> FLOAT
 %token <bval> BOOL
-%token PLUS MINUS TIMES DIV POW GREATER LESS
+%token PLUS MINUS TIMES DIV POW 
+%token GREATER LESS GREATER_THAN LESS_THAN 
+%token AND OR
 %token LPAREN RPAREN SEMICOLON
 
 %type <node> expr
 
+%left AND OR
 %nonassoc EQUAL NOEQUAL
 %nonassoc GREATER LESS GREATER_THAN LESS_THAN 
 %left PLUS MINUS
@@ -53,6 +56,8 @@ expr:
     | expr LESS_THAN expr {$$ = new BinOpNode("<=", $1, $3 );}
     | expr EQUAL expr {$$ = new BinOpNode("==", $1, $3 );}
     | expr NOEQUAL expr {$$ = new BinOpNode("!=", $1, $3 );}
+    | expr AND expr    { $$ = new BinOpNode("&", $1, $3); }
+    | expr OR expr     { $$ = new BinOpNode("|", $1, $3); }
     ;
 
 %%

@@ -44,13 +44,19 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
         // Solo permitimos comparaciones entre floats por ahora
         if (leftT != rightT) {
             errorFlag = true;
-            errorMsg = "Error semántico: operador '" + node.op +
-                    "' requiere operandos del mismo tipo.";
+            errorMsg = "Error semántico: operador '" + node.op + "' requiere operandos del mismo tipo.";
             return;
         }
         lastType = Type::Bool;
     }
-
+    else if (node.op == "&" || node.op == "|") {
+        if (leftT != Type::Bool || rightT != Type::Bool) {
+            errorFlag = true;
+            errorMsg = "Error semántico: operador '" + node.op + "' requiere operandos booleanos.";
+            return;
+        }
+        lastType = Type::Bool;
+    }
     else {
         errorFlag = true;
         errorMsg = "Error semántico: operador desconocido '" + node.op + "'.";

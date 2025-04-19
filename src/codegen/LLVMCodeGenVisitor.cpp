@@ -75,5 +75,17 @@ void LLVMCodeGenVisitor::visit(BinOpNode& node) {
         llvm::Value* cmp = builder.CreateFCmpONE(lhs, rhs, "neqtmp");
         result = builder.CreateUIToFP(cmp, builder.getFloatTy(), "bool2float");
     }
-    
+    else if (node.op == "&") {
+        // Comparaciones booleanas: convertimos de float a i1
+        llvm::Value* lhsBool = builder.CreateFCmpONE(lhs, llvm::ConstantFP::get(context, llvm::APFloat(0.0f)), "lhs_bool");
+        llvm::Value* rhsBool = builder.CreateFCmpONE(rhs, llvm::ConstantFP::get(context, llvm::APFloat(0.0f)), "rhs_bool");
+        llvm::Value* andVal = builder.CreateAnd(lhsBool, rhsBool, "andtmp");
+        result = builder.CreateUIToFP(andVal, builder.getFloatTy(), "bool2float");
+    }
+    else if (node.op == "|") {
+        llvm::Value* lhsBool = builder.CreateFCmpONE(lhs, llvm::ConstantFP::get(context, llvm::APFloat(0.0f)), "lhs_bool");
+        llvm::Value* rhsBool = builder.CreateFCmpONE(rhs, llvm::ConstantFP::get(context, llvm::APFloat(0.0f)), "rhs_bool");
+        llvm::Value* orVal = builder.CreateOr(lhsBool, rhsBool, "ortmp");
+        result = builder.CreateUIToFP(orVal, builder.getFloatTy(), "bool2float");
+    }  
 }
