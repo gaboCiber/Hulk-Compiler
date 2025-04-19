@@ -26,7 +26,8 @@
 
 %type <node> expr
 
-%nonassoc GREATER LESS GREATER_THAN LESS_THAN
+%nonassoc EQUAL NOEQUAL
+%nonassoc GREATER LESS GREATER_THAN LESS_THAN 
 %left PLUS MINUS
 %left TIMES DIV
 %right POW  // asociatividad derecha para potenciación
@@ -50,6 +51,8 @@ expr:
     | expr LESS expr {$$ = new BinOpNode("<", $1, $3 );}
     | expr GREATER_THAN expr {$$ = new BinOpNode(">=", $1, $3 );}
     | expr LESS_THAN expr {$$ = new BinOpNode("<=", $1, $3 );}
+    | expr EQUAL expr {$$ = new BinOpNode("==", $1, $3 );}
+    | expr NOEQUAL expr {$$ = new BinOpNode("!=", $1, $3 );}
     ;
 
 %%

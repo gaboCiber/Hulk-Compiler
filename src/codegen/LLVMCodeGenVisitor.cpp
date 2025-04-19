@@ -67,5 +67,13 @@ void LLVMCodeGenVisitor::visit(BinOpNode& node) {
         llvm::Value* cmp = builder.CreateFCmpOLE(lhs, rhs, "cmptmp");
         result = builder.CreateUIToFP(cmp, builder.getFloatTy(), "bool2float");
     }
+    else if (node.op == "==") {
+        llvm::Value* cmp = builder.CreateFCmpOEQ(lhs, rhs, "eqtmp");
+        result = builder.CreateUIToFP(cmp, builder.getFloatTy(), "bool2float");
+    }
+    else if (node.op == "!=") {
+        llvm::Value* cmp = builder.CreateFCmpONE(lhs, rhs, "neqtmp");
+        result = builder.CreateUIToFP(cmp, builder.getFloatTy(), "bool2float");
+    }
     
 }
