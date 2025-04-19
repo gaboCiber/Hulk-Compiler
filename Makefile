@@ -3,42 +3,44 @@ CXX = g++
 FLEX = flex
 BISON = bison
 
-CXXFLAGS = -Wall -std=c++17 -Isrc -Isrc/ast
-OUT_DIR = build
-SRC_DIR = src
-LEXER_DIR = $(SRC_DIR)/lexer
-PARSER_DIR = $(SRC_DIR)/parser
+CXXFLAGS = -Wall -std=c++17 -Isrc -Isrc/ast -Ibuild/parser
 
-LEX_SRC = $(LEXER_DIR)/lexer.l
-YACC_SRC = $(PARSER_DIR)/parser.y
-MAIN_SRC = $(SRC_DIR)/main.cpp
-
-LEX_C = $(OUT_DIR)/lex.yy.c
-YACC_C = $(OUT_DIR)/parser.tab.c
-YACC_H = $(OUT_DIR)/parser.tab.h
-
-LEX_OBJ = $(OUT_DIR)/lex.yy.o
-YACC_OBJ = $(OUT_DIR)/parser.tab.o
-MAIN_OBJ = $(OUT_DIR)/main.o
-
-AST_SRC = $(SRC_DIR)/ast/ASTNode.cpp
-AST_OBJ = $(OUT_DIR)/ASTNode.o
-
-SEMANTIC_SRC = $(SRC_DIR)/semantic/SemanticChecker.cpp
-SEMANTIC_OBJ = $(OUT_DIR)/SemanticChecker.o
-
+# LLVM
 LLVM_CONFIG = llvm-config
 LLVM_CXXFLAGS = $(shell $(LLVM_CONFIG) --cxxflags)
 LLVM_LDFLAGS  = $(shell $(LLVM_CONFIG) --ldflags --libs core) -Wno-unused-command-line-argument
 
+# Directorios
+SRC_DIR = src
+OUT_DIR = build
+LEXER_DIR = $(SRC_DIR)/lexer
+PARSER_DIR = $(SRC_DIR)/parser
 
-CODEGEN_SRC = $(SRC_DIR)/codegen/LLVMCodeGenVisitor.cpp
-CODEGEN_OBJ = $(OUT_DIR)/LLVMCodeGenVisitor.o
+# Archivos fuentes
+LEX_SRC = $(LEXER_DIR)/lexer.l
+YACC_SRC = $(PARSER_DIR)/parser.y
+MAIN_SRC = $(SRC_DIR)/main.cpp
 
-OBJS = $(MAIN_OBJ) $(LEX_OBJ) $(YACC_OBJ) $(AST_OBJ) $(SEMANTIC_OBJ) $(CODEGEN_OBJ)
+# Archivos generados por flex y bison
+LEX_C  = $(OUT_DIR)/lexer/lex.yy.c
+YACC_C = $(OUT_DIR)/parser/parser.tab.c
+YACC_H = $(OUT_DIR)/parser/parser.tab.h
 
-EXEC = build/hulk-compiler
-SCRIPT_FILE = build/script.hulk
+# Objetos explícitos
+MAIN_OBJ = $(OUT_DIR)/main.o
+LEX_OBJ = $(OUT_DIR)/lexer/lex.yy.o
+YACC_OBJ = $(OUT_DIR)/parser/parser.tab.o
+
+# Detectar automáticamente todos los *.cpp de src/
+CPP_SRC := $(shell find $(SRC_DIR) -name "*.cpp" ! -name "main.cpp")
+CPP_OBJ := $(patsubst $(SRC_DIR)/%.cpp, $(OUT_DIR)/%.o, $(CPP_SRC))
+
+OBJS = $(MAIN_OBJ) $(LEX_OBJ) $(YACC_OBJ) $(CPP_OBJ)
+
+# Ejecutable y archivo de entrada
+EXEC = $(OUT_DIR)/hulk-compiler
+SCRIPT_FILE = $(OUT_DIR)/script.hulk
+LLVM_IR = $(OUT_DIR)/output.ll
 
 # === TARGETS ===
 
@@ -48,11 +50,11 @@ compile: $(OUT_DIR) $(EXEC) $(SCRIPT_FILE)
 	@echo "✅ Build completo. Ejecutable en $(EXEC)"
 
 run: compile
-	@echo "🚀 Ejecutando script.hulk y mostrando AST..."
+	@echo "🚀 Ejecutando script.hulk y generando IR..."
 	@$(EXEC) < $(SCRIPT_FILE)
 
 clean:
-	rm -rf build tmp
+	rm -rf $(OUT_DIR)
 	@echo "🧹 Proyecto limpiado."
 
 # === REGLAS DE COMPILACIÓN ===
@@ -60,12 +62,26 @@ clean:
 $(OUT_DIR):
 	mkdir -p $(OUT_DIR)
 
+$(OUT_DIR)/lexer:
+	mkdir -p $@
+
+$(OUT_DIR)/parser:
+	mkdir -p $@
+
 $(EXEC): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) -o $(EXEC) $(OBJS) $(LLVM_LDFLAGS)
 
-# Generación de objetos
-$(MAIN_OBJ): $(MAIN_SRC)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+# Regla genérica para compilar src/.../*.cpp → build/.../*.o
+$(OUT_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) -c $< -o $@
+
+# Flex y Bison
+$(LEX_C): $(LEX_SRC) $(YACC_H) | $(OUT_DIR)/lexer
+	$(FLEX) -o $@ $<
+
+$(YACC_C) $(YACC_H): $(YACC_SRC) | $(OUT_DIR)/parser
+	$(BISON) -d -o $(YACC_C) $(YACC_SRC)
 
 $(LEX_OBJ): $(LEX_C)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -73,29 +89,12 @@ $(LEX_OBJ): $(LEX_C)
 $(YACC_OBJ): $(YACC_C)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Flex y Bison
-$(LEX_C): $(LEX_SRC) $(YACC_H)
-	$(FLEX) -o $@ $<
-
-
-$(YACC_C) $(YACC_H): $(YACC_SRC)
-	$(BISON) -d -o $(YACC_C) $(YACC_SRC)
-
-# AST
-$(AST_OBJ): $(AST_SRC)
+$(MAIN_OBJ): $(MAIN_SRC)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Semantic
-$(SEMANTIC_OBJ): $(SEMANTIC_SRC)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# LLVM Code Generation
-$(CODEGEN_OBJ): $(CODEGEN_SRC)
-	$(CXX) $(CXXFLAGS) $(LLVM_CXXFLAGS) -c $< -o $@
-
-# Verificar o crear script.hulk
+# Verificar o crear script.hulk vacío
 $(SCRIPT_FILE):
 	@if [ ! -f "$(SCRIPT_FILE)" ]; then touch "$(SCRIPT_FILE)"; fi
 
 # === META ===
-.PHONY: all build run clean
+.PHONY: all compile run clean

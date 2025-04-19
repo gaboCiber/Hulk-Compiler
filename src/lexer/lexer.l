@@ -9,7 +9,8 @@
 [ \t\n\r]+             ;  // Ignorar espacios
 [0-9]+\.[0-9]+         { yylval.fval = atof(yytext); return FLOAT; }
 [0-9]+                 { yylval.fval = atof(yytext); return FLOAT; }
-
+true                  { yylval.bval = true; return BOOL; }
+false                 { yylval.bval = false; return BOOL; }
 "+"                   return PLUS;
 "-"                   return MINUS;
 "*"                   return TIMES;
@@ -18,6 +19,8 @@
 "("                   return LPAREN;
 ")"                   return RPAREN;
 ";"                   return SEMICOLON;
+">"                   return GREATER;
+"<"                   return LESS;
 .                     return yytext[0];
 
 %%

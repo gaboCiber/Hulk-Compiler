@@ -12,6 +12,18 @@ void FloatNode::accept(Visitor& visitor) {
     visitor.visit(*this);
 }
 
+// BoolNode implementation
+BoolNode::BoolNode(bool v) : value(v) {}
+
+void BoolNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "Bool(" << value << ")\n";
+}
+
+void BoolNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+
 // BinOpNode implementation
 BinOpNode::BinOpNode(const std::string& o, ASTNode* l, ASTNode* r)
     : op(o), left(l), right(r) {}

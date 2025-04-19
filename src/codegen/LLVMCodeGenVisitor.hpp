@@ -21,6 +21,7 @@ public:
     LLVMCodeGenVisitor(const std::string& moduleName);
 
     void visit(FloatNode& node) override;
+    void visit(BoolNode& node) override;
     void visit(BinOpNode& node) override;
 
     llvm::Module* getModule() const;

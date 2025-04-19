@@ -26,6 +26,11 @@ void LLVMCodeGenVisitor::visit(FloatNode& node) {
     result = llvm::ConstantFP::get(context, llvm::APFloat(node.value));
 }
 
+void LLVMCodeGenVisitor::visit(BoolNode& node) {
+    // Convertimos bool a float (0.0 o 1.0)
+    result = llvm::ConstantFP::get(context, llvm::APFloat(node.value ? 1.0f : 0.0f));
+}
+
 void LLVMCodeGenVisitor::visit(BinOpNode& node) {
     node.left->accept(*this);
     llvm::Value* lhs = result;
@@ -45,5 +50,13 @@ void LLVMCodeGenVisitor::visit(BinOpNode& node) {
         // Potencia: no hay instrucción directa en LLVM IR
         llvm::Function* powf = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::pow, { builder.getFloatTy() });
         result = builder.CreateCall(powf, { lhs, rhs }, "powtmp");
+    }
+    else if (node.op == ">") {
+        llvm::Value* cmp = builder.CreateFCmpOGT(lhs, rhs, "cmptmp");
+        result = builder.CreateUIToFP(cmp, builder.getFloatTy(), "bool2float");
+    }
+    else if (node.op == "<") {
+        llvm::Value* cmp = builder.CreateFCmpOLT(lhs, rhs, "cmptmp");
+        result = builder.CreateUIToFP(cmp, builder.getFloatTy(), "bool2float");
     }
 }

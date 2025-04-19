@@ -20,6 +20,15 @@ public:
     void accept(Visitor& visitor) override;
 };
 
+class BoolNode : public ASTNode {
+public:
+    bool value;
+    BoolNode(bool v);
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;
+};
+
+
 class BinOpNode : public ASTNode {
 public:
     std::string op;
@@ -31,3 +40,4 @@ public:
     void accept(Visitor& visitor) override;
 
 };
+
