@@ -21,6 +21,8 @@ false                 { yylval.bval = false; return BOOL; }
 ";"                   return SEMICOLON;
 ">"                   return GREATER;
 "<"                   return LESS;
+">="                   return GREATER_THAN;
+"<="                   return LESS_THAN;
 .                     return yytext[0];
 
 %%

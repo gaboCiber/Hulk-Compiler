@@ -26,18 +26,16 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
         // Aritméticos: ambos deben ser float
         if (leftT != Type::Float || rightT != Type::Float) {
             errorFlag = true;
-            errorMsg = "Error semántico: operador '" + node.op +
-                       "' requiere operandos de tipo float.";
+            errorMsg = "Error semántico: operador '" + node.op + "' requiere operandos de tipo float.";
             return;
         }
         lastType = Type::Float;
     }
-    else if (node.op == ">" || node.op == "<") {
+    else if (node.op == ">" || node.op == "<" || node.op == ">=" || node.op == "<=") {
         // Relacionales: ambos deben ser float, resultado bool
         if (leftT != Type::Float || rightT != Type::Float) {
             errorFlag = true;
-            errorMsg = "Error semántico: operador '" + node.op +
-                       "' requiere operandos de tipo float.";
+            errorMsg = "Error semántico: operador '" + node.op + "' requiere operandos de tipo float.";
             return;
         }
         lastType = Type::Bool;

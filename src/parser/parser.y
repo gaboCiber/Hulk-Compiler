@@ -26,7 +26,7 @@
 
 %type <node> expr
 
-%nonassoc GREATER LESS
+%nonassoc GREATER LESS GREATER_THAN LESS_THAN
 %left PLUS MINUS
 %left TIMES DIV
 %right POW  // asociatividad derecha para potenciación
@@ -48,6 +48,8 @@ expr:
     | LPAREN expr RPAREN { $$ = $2; }
     | expr GREATER expr {$$ = new BinOpNode(">", $1, $3 );}
     | expr LESS expr {$$ = new BinOpNode("<", $1, $3 );}
+    | expr GREATER_THAN expr {$$ = new BinOpNode(">=", $1, $3 );}
+    | expr LESS_THAN expr {$$ = new BinOpNode("<=", $1, $3 );}
     ;
 
 %%
