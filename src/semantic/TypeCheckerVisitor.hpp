@@ -3,13 +3,14 @@
 #include "ast/Visitor.hpp"
 #include <string>
 
-enum class Type { Float, Bool };
+enum class Type { Float, Bool, String };
 
 class TypeCheckerVisitor : public Visitor {
 public:
     // Visitor interface
     void visit(FloatNode& node) override;
     void visit(BoolNode& node) override;
+    void visit(StringNode& node) override;
     void visit(UnaryOpNode& node) override;
     void visit(BinOpNode& node) override;
 

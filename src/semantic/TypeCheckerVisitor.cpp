@@ -9,6 +9,10 @@ void TypeCheckerVisitor::visit(BoolNode& node) {
     lastType = Type::Bool;
 }
 
+void TypeCheckerVisitor::visit(StringNode& node) {
+    lastType = Type::String;
+}
+
 void TypeCheckerVisitor::visit(UnaryOpNode& node) {
     // Primero chequea el hijo
     node.node->accept(*this);
@@ -87,6 +91,15 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
             return;
         }
         lastType = Type::Bool;
+    }
+    else if (node.op == "@") {
+        // Concatenación: solo string
+        if (leftT != Type::String || rightT != Type::String) {
+            errorFlag = true;
+            errorMsg = "Error semántico: operador '" + node.op + "' requiere operandos de tipo string.";
+            return;
+        }
+        lastType = Type::String;
     }
     else {
         errorFlag = true;

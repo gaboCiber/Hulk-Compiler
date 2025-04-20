@@ -23,6 +23,17 @@ void BoolNode::accept(Visitor& visitor) {
     visitor.visit(*this);
 }
 
+// StringNode implementation
+StringNode::StringNode(const std::string& v) : value(v) {}
+
+void StringNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "String(\"" << value << "\")\n";
+}
+
+void StringNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
 // UnaryOpNode implementation
 UnaryOpNode::UnaryOpNode(const std::string& o, ASTNode* n)
     : op(o), node(n) {}

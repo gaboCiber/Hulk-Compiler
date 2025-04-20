@@ -2,6 +2,7 @@
 
 class FloatNode;
 class BoolNode;
+class StringNode;
 class UnaryOpNode;
 class BinOpNode;
 
@@ -11,6 +12,7 @@ public:
 
     virtual void visit(FloatNode& node) = 0;
     virtual void visit(BoolNode& node) = 0;
+    virtual void visit(StringNode& node) = 0;
     virtual void visit(BinOpNode& node) = 0;
     virtual void visit(UnaryOpNode& node) = 0;
 };

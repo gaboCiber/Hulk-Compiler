@@ -9,6 +9,7 @@
 [ \t\n\r]+            ;  // Ignorar espacios
 [0-9]+\.[0-9]+        { yylval.fval = atof(yytext); return FLOAT; }
 [0-9]+                { yylval.fval = atof(yytext); return FLOAT; }
+\"(?:\\.|[^"])*\"     { yylval.sval = strdup(yytext + 1); yylval.sval[strlen(yylval.sval) - 1] = '\0'; return STRING;}
 true                  { yylval.bval = true; return BOOL; }
 false                 { yylval.bval = false; return BOOL; }
 "+"                   return PLUS;
@@ -28,6 +29,7 @@ false                 { yylval.bval = false; return BOOL; }
 "&"                   return AND;
 "|"                   return OR;
 "!"                   return NOT;
+"@"                   return CONCAT;
 .                     return yytext[0];
 
 %%

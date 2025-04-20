@@ -1,12 +1,14 @@
 %{
   #include <stdio.h>
   #include <stdlib.h>
+  #include <string>
   #include "ast/ASTNode.hpp"
  
   extern int yylex(void);
   extern int yyerror(const char*);
 
   ASTNode* root;
+
 %}
 
 %code requires {
@@ -16,12 +18,14 @@
 %union {
     float fval;
     bool bval;
+    char* sval;
     ASTNode* node;
 }
 
 %token <fval> FLOAT
 %token <bval> BOOL
-%token PLUS MINUS TIMES DIV POW UMINUS
+%token <sval> STRING
+%token PLUS MINUS TIMES DIV POW UMINUS CONCAT
 %token GREATER LESS GREATER_THAN LESS_THAN 
 %token AND OR NOT
 %token LPAREN RPAREN SEMICOLON
@@ -32,10 +36,12 @@
 %left AND OR
 %nonassoc EQUAL NOEQUAL
 %nonassoc GREATER LESS GREATER_THAN LESS_THAN 
+%left CONCAT
 %left PLUS MINUS
 %left TIMES DIV
 %right POW
 %right UMINUS
+
 
 
 %%
@@ -47,6 +53,7 @@ program:
 expr:
       FLOAT                   { $$ = new FloatNode($1); }
     | BOOL                    { $$ = new BoolNode($1); }
+    | STRING                  { $$ = new StringNode($1); }
 
     | NOT expr                { $$ = new UnaryOpNode("!", $2); }
     | MINUS expr %prec UMINUS { $$ = new UnaryOpNode("-", $2); }
@@ -65,6 +72,7 @@ expr:
     | expr NOEQUAL expr       { $$ = new BinOpNode("!=", $1, $3 );}
     | expr AND expr           { $$ = new BinOpNode("&", $1, $3); }
     | expr OR expr            { $$ = new BinOpNode("|", $1, $3); }
+    | expr CONCAT expr        { $$ = new BinOpNode("@", $1, $3); }
 
     | LPAREN expr RPAREN      { $$ = $2; }
     ;
