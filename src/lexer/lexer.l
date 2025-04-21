@@ -19,6 +19,8 @@ false                 { yylval.bval = false; return BOOL; }
 "^"                   return POW;
 "("                   return LPAREN;
 ")"                   return RPAREN;
+"{"                   return LKEY;
+"}"                   return RKEY;
 ";"                   return SEMICOLON;
 ">"                   return GREATER;
 "<"                   return LESS;

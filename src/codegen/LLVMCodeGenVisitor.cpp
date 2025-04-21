@@ -161,3 +161,9 @@ void LLVMCodeGenVisitor::visit(BinOpNode& node) {
     }
 
 }
+
+void LLVMCodeGenVisitor::visit(BlockNode& node) {
+    for (auto& statement : node.statements) {
+        statement->accept(*this);
+    }
+}

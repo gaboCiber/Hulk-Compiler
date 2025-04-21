@@ -25,6 +25,7 @@ public:
     void visit(BoolNode& node) override;
     void visit(BinOpNode& node) override;
     void visit(UnaryOpNode& node) override;
+    void visit(BlockNode& node) override;
 
     llvm::Module* getModule() const;
 };

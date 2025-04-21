@@ -106,3 +106,10 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
         errorMsg = "Error semántico: operador desconocido '" + node.op + "'.";
     }
 }
+
+void TypeCheckerVisitor::visit(BlockNode& node) {
+    for (auto& child : node.statements) {
+        child->accept(*this);
+        if (errorFlag) return;  // corto si ya hubo error
+    }
+}

@@ -2,6 +2,7 @@
 #include <string>
 #include <memory>
 #include <iostream>
+#include <vector>
 
 class Visitor;
 
@@ -60,3 +61,10 @@ public:
 
 };
 
+class BlockNode : public ASTNode {
+public:
+    std::vector<ASTNode*> statements;
+    void push_back(ASTNode* node); 
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;
+};

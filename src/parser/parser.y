@@ -20,6 +20,7 @@
     bool bval;
     char* sval;
     ASTNode* node;
+    BlockNode* block;
 }
 
 %token <fval> FLOAT
@@ -28,9 +29,10 @@
 %token PLUS MINUS TIMES DIV POW UMINUS CONCAT
 %token GREATER LESS GREATER_THAN LESS_THAN 
 %token AND OR NOT
-%token LPAREN RPAREN SEMICOLON
+%token LPAREN RPAREN SEMICOLON LKEY RKEY
 
-%type <node> expr
+%type <node> program expr
+%type <block> statements
 
 %right NOT
 %left AND OR
@@ -43,12 +45,18 @@
 %right UMINUS
 
 
-
 %%
 
 program:
-    expr SEMICOLON { root = $1; }
-    ;
+    expr SEMICOLON         { root = $1; }
+  | LKEY statements RKEY   { root = $2; }
+  ;
+
+statements:
+    /* vacío */             { $$ = new BlockNode(); }
+  | statements expr SEMICOLON { $1->push_back($2); $$ = $1;}
+  ;
+
 
 expr:
       FLOAT                   { $$ = new FloatNode($1); }

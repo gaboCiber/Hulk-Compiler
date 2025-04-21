@@ -61,3 +61,19 @@ void BinOpNode::print(int indent) const {
 void BinOpNode::accept(Visitor& visitor) {
     visitor.visit(*this);
 }
+
+// BlockNode implementation
+void BlockNode::push_back(ASTNode* node) {
+    statements.push_back(node);
+}
+
+void BlockNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "Block:\n";
+    for (const auto& statement : statements) {
+        statement->print(indent + 2);
+    }
+}
+
+void BlockNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
