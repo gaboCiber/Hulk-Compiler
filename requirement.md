@@ -5,7 +5,7 @@
 ### Instalación de dependencias:
 Ejecutar el siguiente comando para instalar los paquetes requeridos:
 ```sh
-sudo apt update && sudo apt install -y g++ flex bison make m4
+sudo apt update && sudo apt install -y g++ flex bison make m4 llvm clang libclang-dev llvm-dev
 ```
 
 ### Herramientas opcionales (recomendadas para depuración y análisis):
@@ -20,14 +20,5 @@ g++ --version
 flex --version
 bison --version
 make --version
+llvm-config --version
 ```
-
-### Notas:
-- `g++`: Compilador de C++.
-- `flex`: Generador de analizadores léxicos.
-- `bison`: Generador de analizadores sintácticos.
-- `make`: Herramienta de automatización de compilación.
-- `m4`: Requerido por Bison en algunas configuraciones.
-- `valgrind`: Análisis de memoria y detección de fugas (opcional).
-- `gdb`: Depurador de C++ (opcional).
-- `clang-format`: Herramienta para formatear código automáticamente (opcional).

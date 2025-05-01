@@ -31,7 +31,7 @@
 %token AND OR NOT
 %token LPAREN RPAREN SEMICOLON LKEY RKEY
 
-%type <node> program expr
+%type <node> program expr line
 %type <block> statements
 
 %right NOT
@@ -48,13 +48,17 @@
 %%
 
 program:
-    expr SEMICOLON         { root = $1; }
-  | LKEY statements RKEY   { root = $2; }
+    line                    { root = $1; }
+  | LKEY statements RKEY    { root = $2; }
+  ;
+
+line:
+  expr SEMICOLON            { $$ = $1; }
   ;
 
 statements:
     /* vacío */             { $$ = new BlockNode(); }
-  | statements expr SEMICOLON { $1->push_back($2); $$ = $1;}
+  | statements line         { $1->push_back($2); $$ = $1;}
   ;
 
 

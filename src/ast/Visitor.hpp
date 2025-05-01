@@ -6,6 +6,7 @@ class StringNode;
 class UnaryOpNode;
 class BinOpNode;
 class BlockNode;
+class VariableNode;
 
 class Visitor {
 public:
