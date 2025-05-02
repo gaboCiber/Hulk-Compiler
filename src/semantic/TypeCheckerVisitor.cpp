@@ -24,7 +24,7 @@ void TypeCheckerVisitor::visit(UnaryOpNode& node) {
         // Negación: solo float
         if (childT != Type::Float) {
             errorFlag = true;
-            errorMsg = "Error semántico: operador '" + node.op + "' requiere un operando de tipo float.";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere un operando de tipo float.";
             return;
         }
         lastType = Type::Float;
@@ -33,14 +33,14 @@ void TypeCheckerVisitor::visit(UnaryOpNode& node) {
         // Negación lógica: solo bool
         if (childT != Type::Bool) {
             errorFlag = true;
-            errorMsg = "Error semántico: operador '" + node.op + "' requiere un operando booleano.";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere un operando booleano.";
             return;
         }
         lastType = Type::Bool;
     }
     else {
         errorFlag = true;
-        errorMsg = "Error semántico: operador desconocido '" + node.op + "'.";
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador desconocido '" + node.op + "'.";
     }
 }
 
@@ -61,7 +61,7 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
         // Aritméticos: ambos deben ser float
         if (leftT != Type::Float || rightT != Type::Float) {
             errorFlag = true;
-            errorMsg = "Error semántico: operador '" + node.op + "' requiere operandos de tipo float.";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos de tipo float.";
             return;
         }
         lastType = Type::Float;
@@ -70,7 +70,7 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
         // Relacionales: ambos deben ser float, resultado bool
         if (leftT != Type::Float || rightT != Type::Float) {
             errorFlag = true;
-            errorMsg = "Error semántico: operador '" + node.op + "' requiere operandos de tipo float.";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos de tipo float.";
             return;
         }
         lastType = Type::Bool;
@@ -79,7 +79,7 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
         // Solo permitimos comparaciones entre floats por ahora
         if (leftT != rightT) {
             errorFlag = true;
-            errorMsg = "Error semántico: operador '" + node.op + "' requiere operandos del mismo tipo.";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos del mismo tipo.";
             return;
         }
         lastType = Type::Bool;
@@ -87,7 +87,7 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
     else if (node.op == "&" || node.op == "|") {
         if (leftT != Type::Bool || rightT != Type::Bool) {
             errorFlag = true;
-            errorMsg = "Error semántico: operador '" + node.op + "' requiere operandos booleanos.";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos booleanos.";
             return;
         }
         lastType = Type::Bool;
@@ -96,14 +96,14 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
         // Concatenación: solo string
         if (leftT != Type::String || rightT != Type::String) {
             errorFlag = true;
-            errorMsg = "Error semántico: operador '" + node.op + "' requiere operandos de tipo string.";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos de tipo string.";
             return;
         }
         lastType = Type::String;
     }
     else {
         errorFlag = true;
-        errorMsg = "Error semántico: operador desconocido '" + node.op + "'.";
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador desconocido '" + node.op + "'.";
     }
 }
 

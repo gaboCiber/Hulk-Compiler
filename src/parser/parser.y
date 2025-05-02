@@ -6,6 +6,8 @@
  
   extern int yylex(void);
   extern int yyerror(const char*);
+  extern int yylineno;
+  extern char* yytext;
 
   ASTNode* root;
 
@@ -63,28 +65,28 @@ statements:
 
 
 expr:
-      FLOAT                   { $$ = new FloatNode($1); }
-    | BOOL                    { $$ = new BoolNode($1); }
-    | STRING                  { $$ = new StringNode($1); }
+      FLOAT                   { $$ = new FloatNode($1, yylineno); }
+    | BOOL                    { $$ = new BoolNode($1, yylineno); }
+    | STRING                  { $$ = new StringNode($1, yylineno); }
 
-    | NOT expr                { $$ = new UnaryOpNode("!", $2); }
-    | MINUS expr %prec UMINUS { $$ = new UnaryOpNode("-", $2); }
+    | NOT expr                { $$ = new UnaryOpNode("!", $2, yylineno); }
+    | MINUS expr %prec UMINUS { $$ = new UnaryOpNode("-", $2, yylineno); }
     
-    | expr PLUS expr          { $$ = new BinOpNode("+", $1, $3); }
-    | expr MINUS expr         { $$ = new BinOpNode("-", $1, $3); }
-    | expr TIMES expr         { $$ = new BinOpNode("*", $1, $3); }
-    | expr DIV expr           { $$ = new BinOpNode("/", $1, $3); }
-    | expr POW expr           { $$ = new BinOpNode("^", $1, $3); }
+    | expr PLUS expr          { $$ = new BinOpNode("+", $1, $3, yylineno); }
+    | expr MINUS expr         { $$ = new BinOpNode("-", $1, $3, yylineno); }
+    | expr TIMES expr         { $$ = new BinOpNode("*", $1, $3, yylineno); }
+    | expr DIV expr           { $$ = new BinOpNode("/", $1, $3, yylineno); }
+    | expr POW expr           { $$ = new BinOpNode("^", $1, $3, yylineno); }
 
-    | expr GREATER expr       { $$ = new BinOpNode(">", $1, $3 );}
-    | expr LESS expr          { $$ = new BinOpNode("<", $1, $3 );}
-    | expr GREATER_THAN expr  { $$ = new BinOpNode(">=", $1, $3 );}
-    | expr LESS_THAN expr     { $$ = new BinOpNode("<=", $1, $3 );}
-    | expr EQUAL expr         { $$ = new BinOpNode("==", $1, $3 );}
-    | expr NOEQUAL expr       { $$ = new BinOpNode("!=", $1, $3 );}
-    | expr AND expr           { $$ = new BinOpNode("&", $1, $3); }
-    | expr OR expr            { $$ = new BinOpNode("|", $1, $3); }
-    | expr CONCAT expr        { $$ = new BinOpNode("@", $1, $3); }
+    | expr GREATER expr       { $$ = new BinOpNode(">", $1, $3, yylineno);}
+    | expr LESS expr          { $$ = new BinOpNode("<", $1, $3, yylineno);}
+    | expr GREATER_THAN expr  { $$ = new BinOpNode(">=", $1, $3, yylineno);}
+    | expr LESS_THAN expr     { $$ = new BinOpNode("<=", $1, $3, yylineno);}
+    | expr EQUAL expr         { $$ = new BinOpNode("==", $1, $3, yylineno);}
+    | expr NOEQUAL expr       { $$ = new BinOpNode("!=", $1, $3, yylineno);}
+    | expr AND expr           { $$ = new BinOpNode("&", $1, $3, yylineno); }
+    | expr OR expr            { $$ = new BinOpNode("|", $1, $3, yylineno); }
+    | expr CONCAT expr        { $$ = new BinOpNode("@", $1, $3, yylineno); }
 
     | LPAREN expr RPAREN      { $$ = $2; }
     ;
@@ -92,6 +94,7 @@ expr:
 %%
 
 int yyerror(const char* msg) {
-    fprintf(stderr, "Syntax error: %s\n", msg);
+    fprintf(stderr, "[Line %d] Error sintactico cerca '%s'\n", yylineno, yytext);
     return 1;
 }
+

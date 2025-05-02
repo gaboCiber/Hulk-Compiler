@@ -4,9 +4,12 @@
 #include "ast/ASTNode.hpp"
 %}
 
+%option yylineno
+
 %%
 
-[ \t\n\r]+            ;  // Ignorar espacios
+[ \t\r]+              ;  // Ignorar espacios
+\n                    { /* Incrementa automáticamente yylineno */ }
 [0-9]+\.[0-9]+        { yylval.fval = atof(yytext); return FLOAT; }
 [0-9]+                { yylval.fval = atof(yytext); return FLOAT; }
 \"(?:\\.|[^"])*\"     { yylval.sval = strdup(yytext + 1); yylval.sval[strlen(yylval.sval) - 1] = '\0'; return STRING;}
@@ -32,7 +35,8 @@ false                 { yylval.bval = false; return BOOL; }
 "|"                   return OR;
 "!"                   return NOT;
 "@"                   return CONCAT;
-.                     return yytext[0];
+.                     { fprintf(stderr, "[Line %d] Error léxico: símbolo no reconocido '%s'\n", yylineno, yytext); exit(1);}
+
 
 %%
 int yywrap() { return 1; }

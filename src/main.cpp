@@ -48,8 +48,8 @@ int main() {
         // } else {
         //     std::cerr << "❌ No se pudo guardar IR: " << EC.message() << "\n";
         // }
-    } else {
-        std::cerr << "❌ Error de sintaxis.\n";
-    }
+    } 
+
+    delete root;
     return 0;
 }
