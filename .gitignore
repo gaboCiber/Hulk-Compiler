@@ -1,5 +1,6 @@
 # === Ignorar carpeta de compilación ===
 build/
+hulk/
 
 # === Archivos temporales y de backup ===
 *.o
@@ -17,6 +18,8 @@ parser.tab.h
 # === Ejecutables (por si se compilan fuera de build) ===
 hulk-compiler
 *.exe
+script.hulk
+
 
 # === Archivos de prueba/historial temporal ===
 *.log

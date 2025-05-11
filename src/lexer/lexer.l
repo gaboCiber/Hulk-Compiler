@@ -43,6 +43,7 @@ extern int yylineno;
 "<"                   return LESS;
 "=="                  return EQUAL;
 "!="                  return NOEQUAL;
+":="                  return DESTRUCTIVE_ASSIGNM;
 "="                   return ASSIGNM;
 "&"                   return AND;
 "|"                   return OR;

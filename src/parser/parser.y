@@ -43,7 +43,7 @@
 
 %right NOT
 %left AND OR
-%nonassoc EQUAL NOEQUAL ASSIGNM
+%nonassoc EQUAL NOEQUAL ASSIGNM DESTRUCTIVE_ASSIGNM
 %nonassoc GREATER LESS GREATER_THAN LESS_THAN 
 %left CONCAT
 %left PLUS MINUS
@@ -56,7 +56,7 @@
 
 program:
     line                    { root = $1; }
-  | block_lines             { root = $1; }
+  | block_lines SEMICOLON   { root = $1; }
   ;
 
 line:
@@ -78,33 +78,37 @@ assingments:
 
 
 expr:
-      FLOAT                   { $$ = new FloatNode($1, yylineno); }
-    | BOOL                    { $$ = new BoolNode($1, yylineno); }
-    | STRING                  { $$ = new StringNode($1, yylineno); }
+      FLOAT                           { $$ = new FloatNode($1, yylineno); }
+    | BOOL                            { $$ = new BoolNode($1, yylineno); }
+    | STRING                          { $$ = new StringNode($1, yylineno); }
 
-    | ID                      { $$ = new VariableNode($1, yylineno);}
+    | ID                              { $$ = new VariableNode($1, yylineno);}
 
-    | NOT expr                { $$ = new UnaryOpNode("!", $2, yylineno); }
-    | MINUS expr %prec UMINUS { $$ = new UnaryOpNode("-", $2, yylineno); }
+    | NOT expr                        { $$ = new UnaryOpNode("!", $2, yylineno); }
+    | MINUS expr %prec UMINUS         { $$ = new UnaryOpNode("-", $2, yylineno); }
     
-    | expr PLUS expr          { $$ = new BinOpNode("+", $1, $3, yylineno); }
-    | expr MINUS expr         { $$ = new BinOpNode("-", $1, $3, yylineno); }
-    | expr TIMES expr         { $$ = new BinOpNode("*", $1, $3, yylineno); }
-    | expr DIV expr           { $$ = new BinOpNode("/", $1, $3, yylineno); }
-    | expr POW expr           { $$ = new BinOpNode("^", $1, $3, yylineno); }
+    | expr PLUS expr                  { $$ = new BinOpNode("+", $1, $3, yylineno); }
+    | expr MINUS expr                 { $$ = new BinOpNode("-", $1, $3, yylineno); }
+    | expr TIMES expr                 { $$ = new BinOpNode("*", $1, $3, yylineno); }
+    | expr DIV expr                   { $$ = new BinOpNode("/", $1, $3, yylineno); }
+    | expr POW expr                   { $$ = new BinOpNode("^", $1, $3, yylineno); }
 
-    | expr GREATER expr       { $$ = new BinOpNode(">", $1, $3, yylineno);}
-    | expr LESS expr          { $$ = new BinOpNode("<", $1, $3, yylineno);}
-    | expr GREATER_THAN expr  { $$ = new BinOpNode(">=", $1, $3, yylineno);}
-    | expr LESS_THAN expr     { $$ = new BinOpNode("<=", $1, $3, yylineno);}
-    | expr EQUAL expr         { $$ = new BinOpNode("==", $1, $3, yylineno);}
-    | expr NOEQUAL expr       { $$ = new BinOpNode("!=", $1, $3, yylineno);}
-    | expr AND expr           { $$ = new BinOpNode("&", $1, $3, yylineno); }
-    | expr OR expr            { $$ = new BinOpNode("|", $1, $3, yylineno); }
-    | expr CONCAT expr        { $$ = new BinOpNode("@", $1, $3, yylineno); }
+    | expr GREATER expr               { $$ = new BinOpNode(">", $1, $3, yylineno);}
+    | expr LESS expr                  { $$ = new BinOpNode("<", $1, $3, yylineno);}
+    | expr GREATER_THAN expr          { $$ = new BinOpNode(">=", $1, $3, yylineno);}
+    | expr LESS_THAN expr             { $$ = new BinOpNode("<=", $1, $3, yylineno);}
+    | expr EQUAL expr                 { $$ = new BinOpNode("==", $1, $3, yylineno);}
+    | expr NOEQUAL expr               { $$ = new BinOpNode("!=", $1, $3, yylineno);}
+    | expr AND expr                   { $$ = new BinOpNode("&", $1, $3, yylineno); }
+    | expr OR expr                    { $$ = new BinOpNode("|", $1, $3, yylineno); }
+    | expr CONCAT expr                { $$ = new BinOpNode("@", $1, $3, yylineno); }
 
-    | LPAREN expr RPAREN      { $$ = $2; }
-    | LET assingments IN block_lines { $$ = new LetInNode(*$2, static_cast<BlockNode*>($4), yylineno); delete $2; }
+    | LPAREN expr RPAREN              { $$ = $2; }
+
+    | ID DESTRUCTIVE_ASSIGNM expr     { ASTNode* lhs = new VariableNode($1, yylineno); $$ = new BinOpNode(":=", lhs, $3, yylineno); }
+
+    | LET assingments IN expr         { BlockNode* block = new BlockNode(); block->push_back($4); $$ = new LetInNode(*$2, block, yylineno), delete $2; }
+    | LET assingments IN block_lines  { $$ = new LetInNode(*$2, static_cast<BlockNode*>($4), yylineno); delete $2; }
     ;
 
 %%

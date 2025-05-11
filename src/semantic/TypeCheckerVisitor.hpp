@@ -1,10 +1,9 @@
 #pragma once
 
 #include "ast/Visitor.hpp"
-#include "ast/Scope.hpp"
 #include <string>
 
-//enum class Type { Float, Bool, String };
+enum class Type { Float, Bool, String };
 
 class TypeCheckerVisitor : public Visitor {
 public:

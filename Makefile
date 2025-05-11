@@ -3,7 +3,7 @@ CXX = g++
 FLEX = flex
 BISON = bison
 
-CXXFLAGS = -Wall -std=c++17 -Isrc -Isrc/ast -Ibuild/parser
+CXXFLAGS = -Wall -std=c++17 -Isrc -Isrc/ast -Ihulk/parser
 
 # LLVM
 LLVM_CONFIG = llvm-config
@@ -12,7 +12,7 @@ LLVM_LDFLAGS  = $(shell $(LLVM_CONFIG) --ldflags --libs core) -Wno-unused-comman
 
 # Directorios
 SRC_DIR = src
-OUT_DIR = build
+OUT_DIR = hulk
 LEXER_DIR = $(SRC_DIR)/lexer
 PARSER_DIR = $(SRC_DIR)/parser
 
@@ -39,7 +39,7 @@ OBJS = $(MAIN_OBJ) $(LEX_OBJ) $(YACC_OBJ) $(CPP_OBJ)
 
 # Ejecutable y archivo de entrada
 EXEC = $(OUT_DIR)/hulk-compiler
-SCRIPT_FILE = $(OUT_DIR)/script.hulk
+SCRIPT_FILE = script.hulk
 LLVM_IR = $(OUT_DIR)/output.ll
 
 # === TARGETS ===
@@ -49,7 +49,7 @@ all: compile
 compile: $(OUT_DIR) $(EXEC) $(SCRIPT_FILE)
 	@echo "✅ Build completo. Ejecutable en $(EXEC)"
 
-run: compile
+execute: compile
 	@echo "🚀 Ejecutando script.hulk y generando IR..."
 	@$(EXEC) < $(SCRIPT_FILE)
 
