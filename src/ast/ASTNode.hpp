@@ -39,7 +39,6 @@ public:
     void accept(Visitor& visitor) override;
 };
 
-
 class UnaryOpNode : public ASTNode {
 public:
     std::string op;
@@ -71,4 +70,24 @@ public:
     void print(int indent = 0) const override;
     void accept(Visitor& visitor) override;
     ~BlockNode();
+};
+
+
+class VariableNode: public ASTNode {
+public:
+    std::string name;
+    VariableNode(const std::string& n, int l);
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;
+};
+
+class LetInNode : public ASTNode {
+public:
+    std::vector<std::pair<std::string, ASTNode*>> bindings;
+    BlockNode* block;
+
+    LetInNode(const std::vector<std::pair<std::string, ASTNode*>>& b, BlockNode* blk, int l);
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;
+    ~LetInNode();
 };

@@ -7,6 +7,7 @@ class UnaryOpNode;
 class BinOpNode;
 class BlockNode;
 class VariableNode;
+class LetInNode;
 
 class Visitor {
 public:
@@ -18,4 +19,6 @@ public:
     virtual void visit(BinOpNode& node) = 0;
     virtual void visit(UnaryOpNode& node) = 0;
     virtual void visit(BlockNode& node) = 0;
+    virtual void visit(VariableNode& node) = 0;
+    virtual void visit(LetInNode& node) = 0;
 };

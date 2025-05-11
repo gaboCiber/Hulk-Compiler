@@ -92,3 +92,39 @@ BlockNode::~BlockNode() {
         delete stmt;
     }
 }
+
+// VariableNode Implementation
+VariableNode::VariableNode(const std::string& n, int l) : name(n), ASTNode(l) {}
+
+void VariableNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "Variable(" << name << ")\n";
+}
+
+void VariableNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+// LetInNode Implementation
+LetInNode::LetInNode(const std::vector<std::pair<std::string, ASTNode*>>& b, BlockNode* blk, int l)
+    : ASTNode(l), bindings(b), block(blk) {}
+
+void LetInNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "Let\n";
+    for (const auto& pair : bindings) {
+        std::cout << std::string(indent + 2, ' ') << pair.first << " =\n";
+        pair.second->print(indent + 4);
+    }
+    std::cout << std::string(indent, ' ') << "In\n";
+    block->print(indent + 2);
+}
+
+void LetInNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+LetInNode::~LetInNode() {
+    for (auto& pair : bindings) {
+        delete pair.second;
+    }
+    delete block;
+}
