@@ -1,6 +1,8 @@
 #include "semantic/TypeCheckerVisitor.hpp"
 #include "ast/ASTNode.hpp"
 
+TypeCheckerVisitor::TypeCheckerVisitor(Context& context) : ctx(context) {}
+
 void TypeCheckerVisitor::visit(FloatNode& node) {
     lastType = Type::Float;
 }
@@ -75,8 +77,7 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
         }
         lastType = Type::Bool;
     }
-    else if (node.op == "==" || node.op == "!=") {
-        // Solo permitimos comparaciones entre floats por ahora
+    else if (node.op == "==" || node.op == "!=" || node.op == ":=") {
         if (leftT != rightT) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos del mismo tipo.";
@@ -112,4 +113,32 @@ void TypeCheckerVisitor::visit(BlockNode& node) {
         child->accept(*this);
         if (errorFlag) return;  // corto si ya hubo error
     }
+}
+
+void TypeCheckerVisitor::visit(VariableNode& node) {
+    SymbolInfo* info = ctx.currentScope()->lookup(node.name);
+    
+    // if (info == nullptr) {
+    //     errorFlag = true;
+    //     errorMsg = "Error: Variable '" + node.name + "' no definida. Línea " + std::to_string(node.line);
+    // }
+    
+    lastType = info->type;
+}
+
+void TypeCheckerVisitor::visit(LetInNode& node) {
+    ctx.pushScope(node.scope);
+    for (auto& pair: node.bindings)
+    {
+        pair.second->accept(*this);
+
+        if(errorFlag)
+            return;
+
+        SymbolInfo* info = ctx.currentScope()->lookup(pair.first->name);
+        info->type = lastType;
+    }
+        
+    node.block->accept(*this);
+    ctx.popScope();
 }

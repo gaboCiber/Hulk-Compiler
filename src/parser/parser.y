@@ -26,7 +26,7 @@
     char* sval;
     ASTNode* node;
     BlockNode* block;
-    std::vector<std::pair<std::string, ASTNode*>>* bindings;
+    std::vector<std::pair<VariableNode*, ASTNode*>>* bindings;
 }
 
 %token <fval> FLOAT
@@ -72,10 +72,18 @@ statements:
   | statements line         { $1->push_back($2); $$ = $1;}
   ;
 
-assingments:
-    ID ASSIGNM expr                   { $$ = new std::vector<std::pair<std::string, ASTNode*>>(); $$->emplace_back($1, $3); }
-  | assingments COMA ID ASSIGNM expr  { $1->emplace_back($3, $5); $$ = $1; }
 
+assingments:
+    ID ASSIGNM expr {
+        auto* list = new std::vector<std::pair<VariableNode*, ASTNode*>>();
+        list->emplace_back(new VariableNode($1, yylineno), $3);
+        $$ = list;
+    }
+  | assingments COMA ID ASSIGNM expr {
+        $1->emplace_back(new VariableNode($3, yylineno), $5);
+        $$ = $1;
+    }
+  ;
 
 expr:
       FLOAT                           { $$ = new FloatNode($1, yylineno); }
@@ -105,10 +113,23 @@ expr:
 
     | LPAREN expr RPAREN              { $$ = $2; }
 
-    | ID DESTRUCTIVE_ASSIGNM expr     { ASTNode* lhs = new VariableNode($1, yylineno); $$ = new BinOpNode(":=", lhs, $3, yylineno); }
+    
+    | ID DESTRUCTIVE_ASSIGNM expr     { 
+          ASTNode* lhs = new VariableNode($1, yylineno); 
+          $$ = new BinOpNode(":=", lhs, $3, yylineno); 
+          }
 
-    | LET assingments IN expr         { BlockNode* block = new BlockNode(); block->push_back($4); $$ = new LetInNode(*$2, block, yylineno), delete $2; }
-    | LET assingments IN block_lines  { $$ = new LetInNode(*$2, static_cast<BlockNode*>($4), yylineno); delete $2; }
+    | LET assingments IN expr         { 
+          BlockNode* block = new BlockNode(); 
+          block->push_back($4); 
+          $$ = new LetInNode(*$2, block, yylineno), 
+          delete $2; 
+          }
+
+    | LET assingments IN block_lines  { 
+          $$ = new LetInNode(*$2, static_cast<BlockNode*>($4), yylineno); 
+          delete $2; 
+          }
     ;
 
 %%

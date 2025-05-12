@@ -5,6 +5,7 @@
 #include <vector>
 
 class Visitor;
+class Scope;
 
 class ASTNode {
 public:
@@ -83,10 +84,11 @@ public:
 
 class LetInNode : public ASTNode {
 public:
-    std::vector<std::pair<std::string, ASTNode*>> bindings;
+    std::vector<std::pair<VariableNode*, ASTNode*>> bindings;
     BlockNode* block;
+    Scope* scope = nullptr;
 
-    LetInNode(const std::vector<std::pair<std::string, ASTNode*>>& b, BlockNode* blk, int l);
+    LetInNode(const std::vector<std::pair<VariableNode*, ASTNode*>>& b, BlockNode* blk, int l);
     void print(int indent = 0) const override;
     void accept(Visitor& visitor) override;
     ~LetInNode();

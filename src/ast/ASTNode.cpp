@@ -105,13 +105,13 @@ void VariableNode::accept(Visitor& visitor) {
 }
 
 // LetInNode Implementation
-LetInNode::LetInNode(const std::vector<std::pair<std::string, ASTNode*>>& b, BlockNode* blk, int l)
+LetInNode::LetInNode(const std::vector<std::pair<VariableNode*, ASTNode*>>& b, BlockNode* blk, int l)
     : ASTNode(l), bindings(b), block(blk) {}
 
 void LetInNode::print(int indent) const {
     std::cout << std::string(indent, ' ') << "Let\n";
     for (const auto& pair : bindings) {
-        std::cout << std::string(indent + 2, ' ') << pair.first << " =\n";
+        std::cout << std::string(indent + 2, ' ') << pair.first->name << " =\n";
         pair.second->print(indent + 4);
     }
     std::cout << std::string(indent, ' ') << "In\n";
@@ -124,6 +124,7 @@ void LetInNode::accept(Visitor& visitor) {
 
 LetInNode::~LetInNode() {
     for (auto& pair : bindings) {
+        delete pair.first;
         delete pair.second;
     }
     delete block;

@@ -4,8 +4,7 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/FileSystem.h>
 #include "codegen/LLVMCodeGenVisitor.hpp"
-#include "semantic/TypeCheckerVisitor.hpp"
-
+#include "semantic/Checker.hpp"
 
 // Declaraciones necesarias del parser
 extern int yyparse();
@@ -18,13 +17,11 @@ int main() {
         std::cout << "✅ Análisis sintáctico exitoso. AST:\n";
         root->print();
 
-        // TypeCheckerVisitor typeChecker;
-        // root->accept(typeChecker);
-        // if (typeChecker.hasError()) {
-        //     std::cerr << typeChecker.getError() << std::endl;
-        //     return 1;
-        // }
-        // std::cout << "✅ Análisis de tipos exitoso.\n";
+        // Análisis semántico completo
+        if (!Checker::runSemanticAnalysis(root)) {
+            delete root;
+            return 1;
+        }
 
         // LLVMCodeGenVisitor codegen("HulkModule");
         // root->accept(codegen);
