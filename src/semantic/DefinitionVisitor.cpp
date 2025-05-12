@@ -32,14 +32,10 @@ void DefinitionVisitor::visit(LetInNode& node) {
         if(errorFlag)
             return;
 
-        if (! node.scope->define(pair.first->name, pair.second))
-        {
-            errorFlag = true;
-            errorMsg = "[Line " + std::to_string(pair.first->line) + "] Error semántico: variable '" + pair.first->name +  "' ya definida en este scope.\n";
-            return;
-        }
+        node.scope->define(pair.first->name, pair.second);
             
     }
+    
     node.block->accept(*this);
     ctx.popScope();
 }

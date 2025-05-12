@@ -77,13 +77,23 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
         }
         lastType = Type::Bool;
     }
-    else if (node.op == "==" || node.op == "!=" || node.op == ":=") {
+    else if (node.op == "==" || node.op == "!=") {
         if (leftT != rightT) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos del mismo tipo.";
             return;
         }
         lastType = Type::Bool;
+    }
+    else if( node.op == ":=")
+    {
+        if (leftT != rightT) {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos del mismo tipo.";
+            return;
+        }
+
+        lastType = rightT;
     }
     else if (node.op == "&" || node.op == "|") {
         if (leftT != Type::Bool || rightT != Type::Bool) {

@@ -25,16 +25,18 @@ SymbolInfo* Scope::localLookup(const std::string& name) {
     return (it != symbols.end()) ? &it->second : nullptr;
 }
 
-bool Scope::define(const std::string& name, ASTNode* value) {
-    if (localLookup(name) != nullptr) {
-        return false;
-    }
+void Scope::define(const std::string& name, ASTNode* value) {
     
-    SymbolInfo info;
-    info.type = Type::Unknown;
-    info.value = value;
-    symbols[name] = info;
-    return true;
+    SymbolInfo* info = localLookup(name);
+    if (info != nullptr) {
+        info->value = value;
+    }
+    else{
+        info = new SymbolInfo();
+        info->type = Type::Unknown;
+        info->value = value;
+        symbols[name] = *info;
+    }
 }
 
 void Scope::print(int indent) const {
