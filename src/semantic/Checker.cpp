@@ -1,8 +1,7 @@
 #include "semantic/Checker.hpp"
 
-bool Checker::runSemanticAnalysis(ASTNode* root) {
-    Context ctx;
-
+bool Checker::runSemanticAnalysis(ASTNode* root, Context& ctx) {
+    
     // Primera pasada: definición de variables y scopes
     DefinitionVisitor def(ctx);
     root->accept(def);

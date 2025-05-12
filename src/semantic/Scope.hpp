@@ -2,6 +2,7 @@
 #include <unordered_map>
 #include <string>
 #include "ast/ASTNode.hpp"
+#include <llvm/IR/Instructions.h>
 
 enum class Type {
     Float,
@@ -14,7 +15,7 @@ struct SymbolInfo {
     Type type = Type::Unknown;
     //bool isDefined = false;
     ASTNode* value = nullptr;
-    // Puedes añadir: llvm::Value* llvmPtr = nullptr;
+    llvm::Value* llvmValue = nullptr;
 };
 
 class Scope {
@@ -27,7 +28,6 @@ public:
     SymbolInfo* lookup(const std::string& name);     // búsqueda recursiva
     SymbolInfo* localLookup(const std::string& name); // búsqueda solo en el scope actual
     bool define(const std::string& name, ASTNode* value); // define variable
-    bool redefine(const std::string& name, ASTNode* value); // redefine variable
 
     void print(int indent = 0) const;
 

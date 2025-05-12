@@ -4,19 +4,19 @@
 #include <llvm/IR/Instructions.h>
 #include <cmath>
 
-LLVMCodeGenVisitor::LLVMCodeGenVisitor(const std::string& moduleName)
-    : builder(context), module(std::make_unique<llvm::Module>(moduleName, context)), result(nullptr)
+
+LLVMCodeGenVisitor::LLVMCodeGenVisitor(const std::string& moduleName, Context& c)
+    : builder(context), module(std::make_unique<llvm::Module>(moduleName, context)), result(nullptr), ctx(c)
 {
-    // Crear función float @main()
     llvm::FunctionType* funcType = llvm::FunctionType::get(builder.getInt32Ty(), false);
     llvm::Function* mainFunc = llvm::Function::Create(
         funcType, llvm::Function::ExternalLinkage, "main", module.get()
     );
 
-    // Crear bloque de entrada
     llvm::BasicBlock* entry = llvm::BasicBlock::Create(context, "entry", mainFunc);
     builder.SetInsertPoint(entry);
 }
+
 
 llvm::Module* LLVMCodeGenVisitor::getModule() const {
     return module.get();
@@ -159,6 +159,21 @@ void LLVMCodeGenVisitor::visit(BinOpNode& node) {
 
         result = buffer;  // buffer contiene la cadena resultante
     }
+    if (node.op == ":=") {
+        VariableNode* var = dynamic_cast<VariableNode*>(node.left);
+
+        SymbolInfo* info = ctx.currentScope()->lookup(var->name);
+
+        node.right->accept(*this);  // Evalúa el nuevo valor
+        llvm::Value* newVal = result;
+
+        // Hacer el store en el alloca
+        builder.CreateStore(newVal, info->llvmValue);
+
+        result = newVal;  // := devuelve el valor asignado
+        return;
+    }
+
 
 }
 
@@ -167,3 +182,68 @@ void LLVMCodeGenVisitor::visit(BlockNode& node) {
         statement->accept(*this);
     }
 }
+
+void LLVMCodeGenVisitor::visit(VariableNode& node) {
+    SymbolInfo* info = ctx.currentScope()->lookup(node.name);
+
+    // Asumimos que la variable fue almacenada como float, bool o string (pointer i8*)
+    llvm::Type* varType;
+    switch (info->type) {
+        case Type::Float:  varType = builder.getFloatTy(); break;
+        case Type::Bool:   varType = builder.getFloatTy(); break; // bools representados como float 0.0 o 1.0
+        case Type::String: varType = builder.getInt8PtrTy(); break;
+        default:
+            std::cerr << "[Line " << node.line << "] Error: tipo desconocido en variable '" << node.name << "'.\n";
+            result = nullptr;
+            return;
+    }
+
+    result = builder.CreateLoad(varType, info->llvmValue, "loadtmp");
+}
+
+void LLVMCodeGenVisitor::visit(LetInNode& node) {
+    Scope* local = node.scope;
+    ctx.pushScope(local);
+    //node.scope = local;  // lo guardamos por si se usa en el futuro
+
+    for (auto& binding : node.bindings) {
+        VariableNode* var = binding.first;
+        ASTNode* valueExpr = binding.second;
+
+        // Evaluar expresión de la variable
+        valueExpr->accept(*this);
+        llvm::Value* initValue = result;
+
+        if (!initValue) {
+            std::cerr << "[Line " << var->line << "] Error: no se pudo generar código para expresión de '" << var->name << "'.\n";
+            ctx.popScope();
+            return;
+        }
+
+        // Obtener tipo desde contexto (debería estar definido en análisis de tipos)
+        SymbolInfo* info = local->lookup(var->name);
+
+        // Crear alocación en la pila
+        llvm::Type* llvmTy;
+        switch (info->type) {
+            case Type::Float:  llvmTy = builder.getFloatTy(); break;
+            case Type::Bool:   llvmTy = builder.getFloatTy(); break;  // seguimos con float para bools
+            case Type::String: llvmTy = builder.getInt8PtrTy(); break;
+            default:
+                std::cerr << "[Line " << var->line << "] Error: tipo desconocido.\n";
+                ctx.popScope();
+                return;
+        }
+
+        llvm::Value* alloca = builder.CreateAlloca(llvmTy, nullptr, var->name);
+        builder.CreateStore(initValue, alloca);
+        //info->value = valueExpr;
+        info->llvmValue = alloca;
+    }
+
+    // Evaluar el cuerpo del let
+    node.block->accept(*this);
+
+    ctx.popScope();
+}
+

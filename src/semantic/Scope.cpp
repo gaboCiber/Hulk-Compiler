@@ -37,17 +37,6 @@ bool Scope::define(const std::string& name, ASTNode* value) {
     return true;
 }
 
-bool Scope::redefine(const std::string& name, ASTNode* value) {
-    if (localLookup(name) == nullptr) {
-        return false;
-    }
-    
-    SymbolInfo& info = symbols[name];
-    info.value = value;
-    //symbols[name] = info;
-    return true;
-}
-
 void Scope::print(int indent) const {
     std::string pad(indent, ' ');
     for (const auto& pair : symbols) {

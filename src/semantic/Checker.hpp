@@ -9,6 +9,6 @@
 
 class Checker {
 public:
-    static bool runSemanticAnalysis(ASTNode* root);
+    static bool runSemanticAnalysis(ASTNode* root, Context& ctx);
 };
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast/Visitor.hpp"
+#include "semantic/Context.hpp"
 
 #include <llvm/IR/LLVMContext.h>  // ✅ define llvm::LLVMContext
 #include <llvm/IR/IRBuilder.h>    // ✅ define llvm::IRBuilder
@@ -18,7 +19,9 @@ public:
 
     llvm::Value* result;
 
-    LLVMCodeGenVisitor(const std::string& moduleName);
+    Context& ctx;
+
+    LLVMCodeGenVisitor(const std::string& moduleName, Context& c);
 
     void visit(FloatNode& node) override;
     void visit(StringNode& node) override;
@@ -26,6 +29,8 @@ public:
     void visit(BinOpNode& node) override;
     void visit(UnaryOpNode& node) override;
     void visit(BlockNode& node) override;
+    void visit(VariableNode& node) override;
+    void visit(LetInNode& node) override;
 
     llvm::Module* getModule() const;
 };
