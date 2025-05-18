@@ -27,6 +27,7 @@
     ASTNode* node;
     BlockNode* block;
     std::vector<std::pair<VariableNode*, ASTNode*>>* bindings;
+    std::vector<VariableNode*>* args;
 }
 
 %token <fval> FLOAT
@@ -35,15 +36,17 @@
 %token PLUS MINUS TIMES DIV POW UMINUS CONCAT
 %token GREATER LESS GREATER_THAN LESS_THAN 
 %token AND OR NOT
-%token LPAREN RPAREN SEMICOLON LKEY RKEY LET IN ASSIGNM COMA
+%token LPAREN RPAREN SEMICOLON LKEY RKEY LET IN ASSIGNM COMA LAMBDA FUNCTION
 
-%type <node> program block_lines expr line
+%type <node> program block_lines expr line funtion
 %type <block> statements
 %type <bindings> assingments
+%type <args> arguments
 
+%nonassoc ASSIGNM DESTRUCTIVE_ASSIGNM LAMBDA
 %right NOT
 %left AND OR
-%nonassoc EQUAL NOEQUAL ASSIGNM DESTRUCTIVE_ASSIGNM
+%nonassoc EQUAL NOEQUAL
 %nonassoc GREATER LESS GREATER_THAN LESS_THAN 
 %left CONCAT
 %left PLUS MINUS
@@ -55,8 +58,9 @@
 %%
 
 program:
-    line                    { root = $1; }
-  | block_lines SEMICOLON   { root = $1; }
+  | line                        { root = $1; }
+  | block_lines SEMICOLON       { root = $1; }
+  | funtion                     { root = $1; }
   ;
 
 line:
@@ -71,6 +75,39 @@ statements:
     /* vacío */             { $$ = new BlockNode(); }
   | statements line         { $1->push_back($2); $$ = $1;}
   ;
+
+funtion: 
+    /* vacío */             { $$ = new BlockNode(); }
+  | funtion func            { $$ = $1}
+
+func:
+    FUNCTION ID LPAREN arguments RPAREN block_lines {
+        $$ = new FunctionNode($2, *$4, static_cast<BlockNode*>($6), yylineno);
+        delete $4;
+    }
+  | FUNCTION ID LPAREN arguments RPAREN LAMBDA expr {
+        BlockNode* block = new BlockNode();
+        block->push_back($7);
+        $$ = new FunctionNode($2, *$4, block, yylineno);
+        delete $4;
+    }
+;
+
+
+arguments:
+      /* vacío */ {
+          $$ = new std::vector<VariableNode*>();
+      }
+    | ID {
+          auto* list = new std::vector<VariableNode*>();
+          list->push_back(new VariableNode($1, yylineno));
+          $$ = list;
+      }
+    | arguments COMA ID {
+          $1->push_back(new VariableNode($3, yylineno));
+          $$ = $1;
+      }
+;
 
 
 assingments:

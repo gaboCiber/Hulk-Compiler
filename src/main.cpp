@@ -17,24 +17,24 @@ int main() {
         std::cout << "✅ Análisis sintáctico exitoso. AST:\n";
         root->print();
 
-        Context ctx;
+        // Context ctx;
 
-        // Análisis semántico completo
-        if (!Checker::runSemanticAnalysis(root, ctx)) {
-            delete root;
-            return 1;
-        }
+        // // Análisis semántico completo
+        // if (!Checker::runSemanticAnalysis(root, ctx)) {
+        //     delete root;
+        //     return 1;
+        // }
         
-        LLVMCodeGenVisitor codegen("HulkModule", ctx);
-        root->accept(codegen);
+        // LLVMCodeGenVisitor codegen("HulkModule", ctx);
+        // root->accept(codegen);
 
-        // Añadir retorno
-        //codegen.builder.CreateRet(llvm::ConstantInt::get(codegen.builder.getInt32Ty(), 0));
-        codegen.builder.CreateRet(codegen.result);
+        // // Añadir retorno
+        // //codegen.builder.CreateRet(llvm::ConstantInt::get(codegen.builder.getInt32Ty(), 0));
+        // codegen.builder.CreateRet(codegen.result);
 
-        // Imprimir en consola
-        std::cout << "\n🔧 Código LLVM IR generado:\n";
-        codegen.getModule()->print(llvm::outs(), nullptr);
+        // // Imprimir en consola
+        // std::cout << "\n🔧 Código LLVM IR generado:\n";
+        // codegen.getModule()->print(llvm::outs(), nullptr);
 
 
 

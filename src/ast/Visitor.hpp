@@ -21,4 +21,5 @@ public:
     virtual void visit(BlockNode& node) = 0;
     virtual void visit(VariableNode& node) = 0;
     virtual void visit(LetInNode& node) = 0;
+    virtual void visit(FunctionNode& node) = 0;
 };

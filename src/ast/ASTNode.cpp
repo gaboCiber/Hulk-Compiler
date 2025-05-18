@@ -129,3 +129,28 @@ LetInNode::~LetInNode() {
     }
     delete block;
 }
+
+// FunctionNode Implementation
+FunctionNode::FunctionNode(const std::string& n, const std::vector<VariableNode*>& a, BlockNode* blk, int l)
+    : name(n), args(a), block(blk), ASTNode(l) {}
+
+void FunctionNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "Function " << name << " ( ";
+    for (const auto& a : args) {
+        std::cout << a->name << " ";
+    }
+    std::cout << std::string(indent, ' ') << ")\n";
+    block->print(indent + 2);
+}
+
+void FunctionNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+FunctionNode::~FunctionNode() {
+    for (auto& a : args) {
+        delete a;
+    }
+
+    delete block;
+} 

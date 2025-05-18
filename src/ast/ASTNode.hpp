@@ -93,3 +93,16 @@ public:
     void accept(Visitor& visitor) override;
     ~LetInNode();
 };
+
+class FunctionNode: public ASTNode {
+public:
+    std::string name;
+    std::vector<VariableNode*> args;
+    BlockNode* block;
+    Scope* scope = nullptr;
+    
+    FunctionNode(const std::string& n, const std::vector<VariableNode*>& a, BlockNode* blk, int l);
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;
+    ~FunctionNode();
+};

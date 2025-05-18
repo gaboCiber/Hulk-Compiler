@@ -19,6 +19,7 @@ extern int yylineno;
 \"([^\"\\]|\\.)*\"     { yylval.sval = strdup(yytext + 1); yylval.sval[strlen(yylval.sval) - 1] = '\0'; return STRING; }
 "let"                 return LET;
 "in"                  return IN;
+"function"            return FUNCTION;
 "true"                { yylval.bval = true; return BOOL; }
 "false"               { yylval.bval = false; return BOOL; }
 
@@ -43,6 +44,7 @@ extern int yylineno;
 "<"                   return LESS;
 "=="                  return EQUAL;
 "!="                  return NOEQUAL;
+"=>"                  return LAMBDA;
 ":="                  return DESTRUCTIVE_ASSIGNM;
 "="                   return ASSIGNM;
 "&"                   return AND;
