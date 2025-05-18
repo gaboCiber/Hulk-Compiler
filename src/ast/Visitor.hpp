@@ -8,6 +8,8 @@ class BinOpNode;
 class BlockNode;
 class VariableNode;
 class LetInNode;
+class FunctionNode;
+class ProgramNode;
 
 class Visitor {
 public:
@@ -22,4 +24,5 @@ public:
     virtual void visit(VariableNode& node) = 0;
     virtual void visit(LetInNode& node) = 0;
     virtual void visit(FunctionNode& node) = 0;
+    virtual void visit(ProgramNode& node) = 0;
 };

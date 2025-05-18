@@ -106,3 +106,18 @@ public:
     void accept(Visitor& visitor) override;
     ~FunctionNode();
 };
+
+class ProgramNode : public ASTNode {
+public:
+    std::vector<FunctionNode*> functions;
+    std::vector<BlockNode*> blocks;
+    std::vector<ASTNode*> lines;
+    
+    void push_func(FunctionNode* func) { functions.push_back(func); }
+    void push_block(BlockNode* block) { blocks.push_back(block); }
+    void push_line(ASTNode* line) { lines.push_back(line); }
+    
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;
+    ~ProgramNode();
+};

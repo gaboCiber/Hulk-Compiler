@@ -154,3 +154,29 @@ FunctionNode::~FunctionNode() {
 
     delete block;
 } 
+
+void ProgramNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "Program:\n";
+    
+    for (const auto& func : functions) {
+        func->print(indent + 2);
+    }
+    
+    for (const auto& block : blocks) {
+        block->print(indent + 2);
+    }
+    
+    for (const auto& line : lines) {
+        line->print(indent + 2);
+    }
+}
+
+void ProgramNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+ProgramNode::~ProgramNode() {
+    for (auto func : functions) delete func;
+    for (auto block : blocks) delete block;
+    for (auto line : lines) delete line;
+}
