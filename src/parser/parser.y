@@ -28,6 +28,7 @@ ProgramNode* root = new ProgramNode();
     FunctionNode* func;
     std::vector<std::pair<VariableNode*, ASTNode*>>* bindings;
     std::vector<VariableNode*>* args;
+    std::vector<ASTNode*>* expr_list;
 }
 
 %token <fval> FLOAT
@@ -38,11 +39,12 @@ ProgramNode* root = new ProgramNode();
 %token AND OR NOT
 %token LPAREN RPAREN SEMICOLON LKEY RKEY LET IN ASSIGNM COMA LAMBDA FUNCTION
 
-%type <node> program block_lines expr toplevel_item
+%type <node> program block_lines expr line toplevel_item
 %type <func> funtion
 %type <block> statements
 %type <bindings> assingments
 %type <args> arguments
+%type <expr_list> args expr_list
 
 %nonassoc ASSIGNM DESTRUCTIVE_ASSIGNM LAMBDA
 %right NOT
@@ -68,6 +70,9 @@ toplevel_item:
   | funtion SEMICOLON     { root->push_func($1); }
   ;
 
+line:
+    expr                  { $$ = $1; }
+  ;
 
 block_lines:
     LKEY statements RKEY  { $$ = $2; }
@@ -106,6 +111,23 @@ arguments:
     }
   ;
 
+args:
+    /* vacío */ { $$ = new std::vector<ASTNode*>(); }
+  | expr_list   { $$ = $1; }
+  ;
+
+expr_list:
+    expr { 
+        auto* list = new std::vector<ASTNode*>();
+        list->push_back($1);
+        $$ = list;
+    }
+  | expr_list COMA expr {
+        $1->push_back($3);
+        $$ = $1;
+    }
+  ;
+
 assingments:
     ID ASSIGNM expr {
         auto* list = new std::vector<std::pair<VariableNode*, ASTNode*>>();
@@ -123,6 +145,7 @@ expr:
   | BOOL                            { $$ = new BoolNode($1, yylineno); }
   | STRING                          { $$ = new StringNode($1, yylineno); }
   | ID                              { $$ = new VariableNode($1, yylineno); }
+  | ID LPAREN args RPAREN           { $$ = new CallFuncNode($1, *$3, yylineno); delete $3; }
   | NOT expr                        { $$ = new UnaryOpNode("!", $2, yylineno); }
   | MINUS expr %prec UMINUS         { $$ = new UnaryOpNode("-", $2, yylineno); }
   | expr PLUS expr                  { $$ = new BinOpNode("+", $1, $3, yylineno); }

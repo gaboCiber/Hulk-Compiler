@@ -186,3 +186,20 @@ ProgramNode::~ProgramNode() {
         delete stmt;
     }
 }
+
+void CallFuncNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "CallFunc: " << functionName << "\n";
+    for (const auto& arg : arguments) {
+        arg->print(indent + 2);
+    }
+}
+
+void CallFuncNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+CallFuncNode::~CallFuncNode() {
+    for (auto arg : arguments) {
+        delete arg;
+    }
+}
