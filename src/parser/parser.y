@@ -37,7 +37,7 @@ ProgramNode* root = new ProgramNode();
 %token AND OR NOT
 %token LPAREN RPAREN SEMICOLON LKEY RKEY LET IN ASSIGNM COMA LAMBDA FUNCTION
 
-%type <node> toplevel_item block_lines expr line funtion
+%type <node> toplevel_item block_lines expr funtion
 %type <block> statements
 %type <bindings> assingments
 %type <args> arguments
@@ -61,13 +61,9 @@ program:
   ;
 
 toplevel_item:
-    line SEMICOLON        { root->push_line($1); }
-  | block_lines           { root->push_block(static_cast<BlockNode*>($1)); }
-  | funtion               { root->push_func(static_cast<FunctionNode*>($1)); }
-  ;
-
-line:
-    expr                  { $$ = $1; }
+    expr SEMICOLON        { root->push_line($1); }
+  | block_lines SEMICOLON { root->push_block(static_cast<BlockNode*>($1)); }
+  | funtion SEMICOLON     { root->push_func(static_cast<FunctionNode*>($1)); }
   ;
 
 block_lines:
@@ -75,8 +71,8 @@ block_lines:
   ;
 
 statements:
-    /* vacío */           { $$ = new BlockNode(); }
-  | statements line       { $1->push_back($2); $$ = $1; }
+    /* vacío */               { $$ = new BlockNode(); }
+  | statements expr SEMICOLON { $1->push_back($2); $$ = $1; }
   ;
 
 funtion: 
