@@ -110,14 +110,12 @@ public:
 class ProgramNode : public ASTNode {
 public:
     std::vector<FunctionNode*> functions;
-    std::vector<BlockNode*> blocks;
-    std::vector<ASTNode*> lines;
+    std::vector<ASTNode*> statements;  // Unificamos blocks y lines aquí
     
     void push_func(FunctionNode* func) { functions.push_back(func); }
-    void push_block(BlockNode* block) { blocks.push_back(block); }
-    void push_line(ASTNode* line) { lines.push_back(line); }
+    void push_statement(ASTNode* stmt) { statements.push_back(stmt); }
     
     void print(int indent = 0) const override;
     void accept(Visitor& visitor) override;
-    ~ProgramNode();
+    ~ProgramNode() override;
 };

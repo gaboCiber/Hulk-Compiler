@@ -25,6 +25,7 @@ ProgramNode* root = new ProgramNode();
     char* sval;
     ASTNode* node;
     BlockNode* block;
+    FunctionNode* func;
     std::vector<std::pair<VariableNode*, ASTNode*>>* bindings;
     std::vector<VariableNode*>* args;
 }
@@ -37,7 +38,8 @@ ProgramNode* root = new ProgramNode();
 %token AND OR NOT
 %token LPAREN RPAREN SEMICOLON LKEY RKEY LET IN ASSIGNM COMA LAMBDA FUNCTION
 
-%type <node> toplevel_item block_lines expr funtion
+%type <node> program block_lines expr line toplevel_item
+%type <func> funtion
 %type <block> statements
 %type <bindings> assingments
 %type <args> arguments
@@ -61,9 +63,13 @@ program:
   ;
 
 toplevel_item:
-    expr SEMICOLON        { root->push_line($1); }
-  | block_lines SEMICOLON { root->push_block(static_cast<BlockNode*>($1)); }
-  | funtion SEMICOLON     { root->push_func(static_cast<FunctionNode*>($1)); }
+    line SEMICOLON        { root->push_statement($1); }
+  | block_lines           { root->push_statement($1); }
+  | funtion               { root->push_func($1); }
+  ;
+
+line:
+    expr                  { $$ = $1; }
   ;
 
 block_lines:

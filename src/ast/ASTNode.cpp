@@ -155,19 +155,19 @@ FunctionNode::~FunctionNode() {
     delete block;
 } 
 
+// En ASTNode.cpp - Implementación de ProgramNode
+
 void ProgramNode::print(int indent) const {
     std::cout << std::string(indent, ' ') << "Program:\n";
     
+    // Imprimir funciones primero
     for (const auto& func : functions) {
         func->print(indent + 2);
     }
     
-    for (const auto& block : blocks) {
-        block->print(indent + 2);
-    }
-    
-    for (const auto& line : lines) {
-        line->print(indent + 2);
+    // Imprimir statements (bloques y líneas)
+    for (const auto& stmt : statements) {
+        stmt->print(indent + 2);
     }
 }
 
@@ -176,7 +176,13 @@ void ProgramNode::accept(Visitor& visitor) {
 }
 
 ProgramNode::~ProgramNode() {
-    for (auto func : functions) delete func;
-    for (auto block : blocks) delete block;
-    for (auto line : lines) delete line;
+    // Liberar memoria de funciones
+    for (auto func : functions) {
+        delete func;
+    }
+    
+    // Liberar memoria de statements
+    for (auto stmt : statements) {
+        delete stmt;
+    }
 }
