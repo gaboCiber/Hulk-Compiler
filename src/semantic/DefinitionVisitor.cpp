@@ -41,6 +41,39 @@ void DefinitionVisitor::visit(LetInNode& node) {
 }
 
 void DefinitionVisitor::visit(BlockNode& node) {
+    // DUDA: un bloque de codigo crea un nuevo scope
+    for (auto stmt : node.statements) {
+        stmt->accept(*this);
+        if(errorFlag)
+            return;
+    }
+}
+
+void DefinitionVisitor::visit(FunctionNode& node) {
+    node.scope = new Scope(ctx.currentScope());
+    ctx.pushScope(node.scope);
+    for(auto& arg : node.args)
+    {
+        node.scope->define(arg->name, nullptr);  
+    }
+    
+    node.block->accept(*this);
+    ctx.popScope();
+}
+
+void DefinitionVisitor::visit(ProgramNode& node) {
+    for (auto stmt : node.functions) {
+        
+        if (!ctx.defineFunction(stmt->name, stmt)) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(stmt->line) + "] Error: la función '" + stmt->name + "' ya fue definida.";
+        return;
+    }
+        stmt->accept(*this);
+        if(errorFlag)
+            return;
+    }
+
     for (auto stmt : node.statements) {
         stmt->accept(*this);
         if(errorFlag)

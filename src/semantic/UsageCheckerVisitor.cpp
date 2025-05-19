@@ -49,3 +49,23 @@ void UsageCheckerVisitor::visit(BlockNode& node) {
             return;
     }
 }
+
+void UsageCheckerVisitor::visit(FunctionNode& node) {
+    ctx.pushScope(node.scope);
+    node.block->accept(*this);
+    ctx.popScope();
+}
+
+void UsageCheckerVisitor::visit(ProgramNode& node) {
+    for (auto stmt : node.functions) {
+        stmt->accept(*this);
+        if(errorFlag)
+            return;
+    }
+
+    for (auto stmt : node.statements) {
+        stmt->accept(*this);
+        if(errorFlag)
+            return;
+    }
+}

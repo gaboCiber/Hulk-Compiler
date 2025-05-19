@@ -7,6 +7,7 @@
 #include <llvm/IR/IRBuilder.h>    // ✅ define llvm::IRBuilder
 #include <llvm/IR/Module.h>       // ✅ define llvm::Module
 #include <llvm/IR/Value.h>        // ✅ define llvm::Value
+#include <llvm/IR/Type.h>
 
 #include <string>
 #include <memory>  // para std::unique_ptr
@@ -22,6 +23,7 @@ public:
     Context& ctx;
 
     LLVMCodeGenVisitor(const std::string& moduleName, Context& c);
+    llvm::Type* llvmType(Type t);
 
     void visit(FloatNode& node) override;
     void visit(StringNode& node) override;
@@ -31,6 +33,8 @@ public:
     void visit(BlockNode& node) override;
     void visit(VariableNode& node) override;
     void visit(LetInNode& node) override;
+    void visit(FunctionNode& node) override;
+    void visit(ProgramNode& node) override;
 
     llvm::Module* getModule() const;
 };

@@ -8,13 +8,7 @@
 LLVMCodeGenVisitor::LLVMCodeGenVisitor(const std::string& moduleName, Context& c)
     : builder(context), module(std::make_unique<llvm::Module>(moduleName, context)), result(nullptr), ctx(c)
 {
-    llvm::FunctionType* funcType = llvm::FunctionType::get(builder.getInt32Ty(), false);
-    llvm::Function* mainFunc = llvm::Function::Create(
-        funcType, llvm::Function::ExternalLinkage, "main", module.get()
-    );
-
-    llvm::BasicBlock* entry = llvm::BasicBlock::Create(context, "entry", mainFunc);
-    builder.SetInsertPoint(entry);
+    // Nada más aquí. El IR se construye desde ProgramNode
 }
 
 
@@ -245,5 +239,80 @@ void LLVMCodeGenVisitor::visit(LetInNode& node) {
     node.block->accept(*this);
 
     ctx.popScope();
+}
+
+llvm::Type* LLVMCodeGenVisitor::llvmType(Type t) {
+    switch (t) {
+        case Type::Float:  return builder.getFloatTy();
+        case Type::Bool:   return builder.getFloatTy();  // bools siguen como floats
+        case Type::String: return builder.getInt8PtrTy();
+        default: return nullptr;
+    }
+}
+
+void LLVMCodeGenVisitor::visit(FunctionNode& node) {
+    // Obtener información de tipos desde contexto
+    FunctionInfo* info = ctx.lookupFunction(node.name);
+
+    // Obtener tipos de los argumentos
+    std::vector<llvm::Type*> argTypes;
+    for (VariableNode* arg : node.args) {
+        SymbolInfo* argInfo = node.scope->lookup(arg->name);
+        argTypes.push_back(llvmType(argInfo->type));
+    }
+
+    // Crear tipo de retorno real
+    llvm::Type* retTy = llvmType(info->returnType);
+    llvm::FunctionType* funcType = llvm::FunctionType::get(retTy, argTypes, false);
+
+    llvm::Function* func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, node.name, module.get());
+    llvm::BasicBlock* entry = llvm::BasicBlock::Create(context, "entry", func);
+    builder.SetInsertPoint(entry);
+
+    ctx.pushScope(node.scope);
+
+    // Mapear argumentos
+    unsigned i = 0;
+    for (auto& llvmArg : func->args()) {
+        VariableNode* arg = node.args[i];
+        llvmArg.setName(arg->name);
+
+        SymbolInfo* argInfo = node.scope->lookup(arg->name);
+        llvm::Type* llvmTy = llvmType(argInfo->type);
+
+        llvm::AllocaInst* alloca = builder.CreateAlloca(llvmTy, nullptr, arg->name);
+        builder.CreateStore(&llvmArg, alloca);
+        argInfo->llvmValue = alloca;
+
+        i++;
+    }
+
+    node.block->accept(*this);
+    builder.CreateRet(result);
+    ctx.popScope();
+}
+
+void LLVMCodeGenVisitor::visit(ProgramNode& node) {
+    // Primero declarar todas las funciones
+    for (auto func : node.functions)
+        func->accept(*this);
+
+    // Opcional: generar main implícito si hay líneas/bloques fuera de funciones
+    if (!node.statements.empty()) {
+        llvm::FunctionType* mainType = llvm::FunctionType::get(builder.getInt32Ty(), false);
+        llvm::Function* mainFunc = llvm::Function::Create(mainType, llvm::Function::ExternalLinkage, "main", module.get());
+
+        llvm::BasicBlock* entry = llvm::BasicBlock::Create(context, "entry", mainFunc);
+        builder.SetInsertPoint(entry);
+
+        ctx.pushScope(ctx.globalScope);  // usar global como scope del main
+
+        for (auto stmt : node.statements)
+            stmt->accept(*this);
+
+        builder.CreateRet(llvm::ConstantInt::get(builder.getInt32Ty(), 0));
+
+        ctx.popScope();
+    }
 }
 

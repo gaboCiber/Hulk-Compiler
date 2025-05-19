@@ -20,6 +20,8 @@ public:
     void visit(BlockNode& node) override;
     void visit(VariableNode& node) override;
     void visit(LetInNode& node) override;
+    void visit(FunctionNode& node) override;
+    void visit(ProgramNode& node) override;
 
     bool hasError() const { return errorFlag; }
     const std::string& getError() const { return errorMsg; }

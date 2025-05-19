@@ -22,3 +22,16 @@ void Context::popScope() {
 Scope* Context::currentScope() const {
     return scopeStack.back();
 }
+
+bool Context::defineFunction(const std::string& name, FunctionNode* node) {
+    if (functionTable.count(name)) {
+        return false;  // ya definida
+    }
+    functionTable[name] = { node, Type::Unknown };
+    return true;
+}
+
+FunctionInfo* Context::lookupFunction(const std::string& name) {
+    auto it = functionTable.find(name);
+    return (it != functionTable.end()) ? &it->second : nullptr;
+}
