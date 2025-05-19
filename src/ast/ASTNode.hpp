@@ -119,3 +119,16 @@ public:
     void accept(Visitor& visitor) override;
     ~ProgramNode() override;
 };
+
+class CallFuncNode : public ASTNode {
+public:
+    std::string functionName;
+    std::vector<ASTNode*> arguments;
+    
+    CallFuncNode(const std::string& name, const std::vector<ASTNode*>& args, int line)
+        : ASTNode(line), functionName(name), arguments(args) {}
+    
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;
+    ~CallFuncNode();
+};

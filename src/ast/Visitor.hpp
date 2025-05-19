@@ -25,4 +25,5 @@ public:
     virtual void visit(LetInNode& node) = 0;
     virtual void visit(FunctionNode& node) = 0;
     virtual void visit(ProgramNode& node) = 0;
+    virtual void visit(CallFuncNode& node) = 0;
 };
