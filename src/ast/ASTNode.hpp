@@ -132,3 +132,14 @@ public:
     void accept(Visitor& visitor) override;
     ~CallFuncNode();
 };
+
+class WhileNode : public ASTNode {
+public:
+    ASTNode* condition;
+    BlockNode* body;
+    
+    WhileNode(ASTNode* cond, BlockNode* b, int line);
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;
+    ~WhileNode();
+};

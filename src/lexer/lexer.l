@@ -20,6 +20,7 @@ extern int yylineno;
 "let"                 return LET;
 "in"                  return IN;
 "function"            return FUNCTION;
+"while"               return WHILE;
 "true"                { yylval.bval = true; return BOOL; }
 "false"               { yylval.bval = false; return BOOL; }
 

@@ -37,11 +37,11 @@ ProgramNode* root = new ProgramNode();
 %token PLUS MINUS TIMES DIV POW UMINUS CONCAT
 %token GREATER LESS GREATER_THAN LESS_THAN 
 %token AND OR NOT
-%token LPAREN RPAREN SEMICOLON LKEY RKEY LET IN ASSIGNM COMA LAMBDA FUNCTION
+%token LPAREN RPAREN SEMICOLON LKEY RKEY LET IN ASSIGNM COMA LAMBDA FUNCTION WHILE
 
-%type <node> program block_lines expr line toplevel_item
-%type <func> funtion
-%type <block> statements
+%type <node> program expr toplevel_item
+%type <block> block_lines statements
+%type <func> function
 %type <bindings> assingments
 %type <args> arguments
 %type <expr_list> args expr_list
@@ -60,18 +60,14 @@ ProgramNode* root = new ProgramNode();
 %%
 
 program:
-    /* vacío */             { /* Root ya inicializado */ }
-  | program toplevel_item   { /* Las acciones están en toplevel_item */ }
+    /* vacío */             { $$ = root; }
+  | program toplevel_item   { $$ = root; }
   ;
 
 toplevel_item:
     expr SEMICOLON        { root->push_statement($1); }
   | block_lines SEMICOLON { root->push_statement($1); }
-  | funtion SEMICOLON     { root->push_func($1); }
-  ;
-
-line:
-    expr                  { $$ = $1; }
+  | function SEMICOLON    { root->push_func($1); }
   ;
 
 block_lines:
@@ -83,9 +79,9 @@ statements:
   | statements expr SEMICOLON { $1->push_back($2); $$ = $1; }
   ;
 
-funtion: 
+function: 
     FUNCTION ID LPAREN arguments RPAREN block_lines {
-        $$ = new FunctionNode($2, *$4, static_cast<BlockNode*>($6), yylineno);
+        $$ = new FunctionNode($2, *$4, $6, yylineno);
         delete $4;
     }
   | FUNCTION ID LPAREN arguments RPAREN LAMBDA expr {
@@ -174,8 +170,16 @@ expr:
         delete $2; 
     }
   | LET assingments IN block_lines  { 
-        $$ = new LetInNode(*$2, static_cast<BlockNode*>($4), yylineno); 
+        $$ = new LetInNode(*$2, $4, yylineno); 
         delete $2; 
+    }
+  | WHILE LPAREN expr RPAREN block_lines {
+        $$ = new WhileNode($3, $5, yylineno);
+    }
+  | WHILE LPAREN expr RPAREN LAMBDA expr {
+        BlockNode* block = new BlockNode();
+        block->push_back($6);
+        $$ = new WhileNode($3, block, yylineno);
     }
   ;
 

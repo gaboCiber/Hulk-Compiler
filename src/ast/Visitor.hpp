@@ -11,6 +11,7 @@ class LetInNode;
 class FunctionNode;
 class ProgramNode;
 class CallFuncNode;
+class WhileNode;
 
 class Visitor {
 public:
@@ -27,5 +28,6 @@ public:
     virtual void visit(FunctionNode& node) = 0;
     virtual void visit(ProgramNode& node) = 0;
     virtual void visit(CallFuncNode& node) = 0;
+    virtual void visit(WhileNode& node) = 0;
     
 };

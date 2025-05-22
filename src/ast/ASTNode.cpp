@@ -203,3 +203,23 @@ CallFuncNode::~CallFuncNode() {
         delete arg;
     }
 }
+
+WhileNode::WhileNode(ASTNode* cond, BlockNode* body, int line)
+    : ASTNode(line), condition(cond), body(body) {}
+
+void WhileNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "While:\n";
+    std::cout << std::string(indent + 2, ' ') << "Condition:\n";
+    condition->print(indent + 4);
+    std::cout << std::string(indent + 2, ' ') << "Body:\n";
+    body->print(indent + 4);
+}
+
+void WhileNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+WhileNode::~WhileNode() {
+    delete condition;
+    delete body;
+}
