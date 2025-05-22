@@ -5,6 +5,7 @@
 #include "semantic/DefinitionVisitor.hpp"
 #include "semantic/UsageCheckerVisitor.hpp"
 #include "semantic/TypeCheckerVisitor.hpp"
+#include "semantic/TypeInferenceVisitor.hpp"
 #include <iostream>
 
 class Checker {

@@ -69,3 +69,7 @@ void UsageCheckerVisitor::visit(ProgramNode& node) {
             return;
     }
 }
+
+void UsageCheckerVisitor::visit(CallFuncNode& node){
+
+}

@@ -24,7 +24,7 @@ void TypeCheckerVisitor::visit(UnaryOpNode& node) {
     // Ahora, según el operador:
     if (node.op == "-") {
         // Negación: solo float
-        if (childT != Type::Float && childT != Type::Unknown) {
+        if (childT != Type::Float) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere un operando de tipo float.";
             return;
@@ -32,8 +32,8 @@ void TypeCheckerVisitor::visit(UnaryOpNode& node) {
         lastType = Type::Float;
     }
     else if (node.op == "!") {
-
-        if (childT != Type::Bool && childT != Type::Unknown) {
+        // Negación lógica: solo bool
+        if (childT != Type::Bool) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere un operando booleano.";
             return;
@@ -57,13 +57,11 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
     Type rightT = lastType;
     if (errorFlag) return;
 
-    bool isUnknow = leftT == Type::Unknown || rightT == Type::Unknown;
-
     // Ahora, según el operador:
     if (node.op == "+" || node.op == "-" || node.op == "*" ||
         node.op == "/" || node.op == "^") {
         // Aritméticos: ambos deben ser float
-        if ( !isUnknow && (leftT != Type::Float || rightT != Type::Float)) {
+        if (leftT != Type::Float || rightT != Type::Float) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos de tipo float.";
             return;
@@ -72,7 +70,7 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
     }
     else if (node.op == ">" || node.op == "<" || node.op == ">=" || node.op == "<=") {
         // Relacionales: ambos deben ser float, resultado bool
-        if ( ! isUnknow && (leftT != Type::Float || rightT != Type::Float)) {
+        if (leftT != Type::Float || rightT != Type::Float) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos de tipo float.";
             return;
@@ -80,7 +78,7 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
         lastType = Type::Bool;
     }
     else if (node.op == "==" || node.op == "!=") {
-        if (!isUnknow && leftT != rightT) {
+        if (leftT != rightT) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos del mismo tipo.";
             return;
@@ -89,20 +87,16 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
     }
     else if( node.op == ":=")
     {
-        if (!isUnknow && leftT != rightT) {
+        if (leftT != rightT) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos del mismo tipo.";
             return;
         }
-        else if (leftT == Type::Unknown)
-            lastType = rightT;
-        else if (rightT == Type::Unknown)
-            lastType = leftT;
-        else
-            lastType = rightT;
+
+        lastType = rightT;
     }
     else if (node.op == "&" || node.op == "|") {
-        if (!isUnknow && (leftT != Type::Bool || rightT != Type::Bool)) {
+        if (leftT != Type::Bool || rightT != Type::Bool) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos booleanos.";
             return;
@@ -111,7 +105,7 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
     }
     else if (node.op == "@") {
         // Concatenación: solo string
-        if (!isUnknow && (leftT != Type::String || rightT != Type::String)) {
+        if (leftT != Type::String || rightT != Type::String) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos de tipo string.";
             return;
@@ -180,3 +174,7 @@ void TypeCheckerVisitor::visit(ProgramNode& node) {
             return;
     }
 } 
+
+void TypeCheckerVisitor::visit(CallFuncNode& node){
+
+}

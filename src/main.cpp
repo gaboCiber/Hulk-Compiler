@@ -30,7 +30,7 @@ int main() {
 
         // Añadir retorno
         //codegen.builder.CreateRet(llvm::ConstantInt::get(codegen.builder.getInt32Ty(), 0));
-        codegen.builder.CreateRet(codegen.result);
+        //codegen.builder.CreateRet(codegen.result);
 
         // Imprimir en consola
         std::cout << "\n🔧 Código LLVM IR generado:\n";

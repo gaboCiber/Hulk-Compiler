@@ -80,3 +80,7 @@ void DefinitionVisitor::visit(ProgramNode& node) {
             return;
     }
 }
+
+void DefinitionVisitor::visit(CallFuncNode& node){
+
+}

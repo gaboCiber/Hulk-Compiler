@@ -20,7 +20,16 @@ bool Checker::runSemanticAnalysis(ASTNode* root, Context& ctx) {
     }
     std::cout << "✅ Uso de variables válido.\n";
 
-    // Tercera pasada: chequeo de tipos
+    // Cuarta pasada: inferencia de tipos
+    TypeInferenceVisitor inference(ctx);
+    root->accept(inference);
+    if (inference.hasError()) {
+        std::cerr << "❌ " << inference.getError() << std::endl;
+        return false;
+    }
+    std::cout << "✅ Tipos inferidos correctamente.\n";
+
+    // Cuarta pasada: chequeo de tipos
     TypeCheckerVisitor types(ctx);
     root->accept(types);
     if (types.hasError()) {

@@ -3,6 +3,8 @@
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Instructions.h>
 #include <cmath>
+#include <iostream>
+#include "LLVMCodeGenVisitor.hpp"
 
 
 LLVMCodeGenVisitor::LLVMCodeGenVisitor(const std::string& moduleName, Context& c)
@@ -250,6 +252,15 @@ llvm::Type* LLVMCodeGenVisitor::llvmType(Type t) {
     }
 }
 
+std::string LLVMCodeGenVisitor::llvmTypeName(Type t) {
+    switch (t) {
+        case Type::Float:  return "float";
+        case Type::Bool:   return "bool";
+        case Type::String: return "string";
+        default: return "unknown";
+    }
+}
+
 void LLVMCodeGenVisitor::visit(FunctionNode& node) {
     // Obtener información de tipos desde contexto
     FunctionInfo* info = ctx.lookupFunction(node.name);
@@ -258,6 +269,7 @@ void LLVMCodeGenVisitor::visit(FunctionNode& node) {
     std::vector<llvm::Type*> argTypes;
     for (VariableNode* arg : node.args) {
         SymbolInfo* argInfo = node.scope->lookup(arg->name);
+        std::cout << llvmTypeName(argInfo->type) << std::endl;
         argTypes.push_back(llvmType(argInfo->type));
     }
 
@@ -316,3 +328,6 @@ void LLVMCodeGenVisitor::visit(ProgramNode& node) {
     }
 }
 
+void LLVMCodeGenVisitor::visit(CallFuncNode& node){
+
+}
