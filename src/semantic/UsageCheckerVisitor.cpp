@@ -71,5 +71,16 @@ void UsageCheckerVisitor::visit(ProgramNode& node) {
 }
 
 void UsageCheckerVisitor::visit(CallFuncNode& node){
+    
+    if(ctx.lookupFunction(node.functionName) == nullptr){
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: función '" + node.functionName +  "' no definida.\n";
+        return;
+    }
 
+    for (auto args : node.arguments) {
+        args->accept(*this);
+        if(errorFlag)
+            return;
+    }
 }

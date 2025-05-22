@@ -82,5 +82,10 @@ void DefinitionVisitor::visit(ProgramNode& node) {
 }
 
 void DefinitionVisitor::visit(CallFuncNode& node){
-
+    
+    for (auto args : node.arguments) {
+        args->accept(*this);
+        if(errorFlag)
+            return;
+    }
 }
