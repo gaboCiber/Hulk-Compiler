@@ -173,5 +173,13 @@ void TypeInferenceVisitor::visit(ProgramNode& node) {
 } 
 
 void TypeInferenceVisitor::visit(CallFuncNode& node){
+    FunctionInfo* info = ctx.lookupFunction(node.functionName);
 
+    for (auto args : node.arguments) {
+        args->accept(*this);
+        if(errorFlag)
+            return;
+    } 
+
+    lastType = info->returnType;
 }

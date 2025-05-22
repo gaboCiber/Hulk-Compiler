@@ -176,5 +176,34 @@ void TypeCheckerVisitor::visit(ProgramNode& node) {
 } 
 
 void TypeCheckerVisitor::visit(CallFuncNode& node){
+    FunctionInfo* info = ctx.lookupFunction(node.functionName);
 
+    if ( node.arguments.size() != info->node->args.size() ) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: la función '" + node.functionName + "' requiere " + std::to_string(info->node->args.size()) + " argumentos. Se le pasaron " + std::to_string(node.arguments.size()) + ".\n";
+        return;
+    }
+
+
+    ctx.pushScope(info->node->scope);
+
+    unsigned i = 0;
+    for (auto args : node.arguments) {
+        args->accept(*this);
+
+        std::string name = info->node->args.at(i)->name;
+        SymbolInfo* varInfo = ctx.currentScope()->lookup(name);
+
+        if(varInfo->type != lastType){
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el argumento '" + name + "' de la funcion '" + info->node->name + "' es de tipo '" + TypeToString(varInfo->type) + "' . No de tipo '" + TypeToString(lastType) +  "' .\n";
+            return;
+        }
+        
+        i++;
+    } 
+
+    ctx.popScope();
+
+    lastType = info->returnType;
 }
