@@ -38,6 +38,7 @@ public:
     void visit(FunctionNode& node) override;
     void visit(ProgramNode& node) override;
     void visit(CallFuncNode& node) override;
+    void visit(WhileNode& node) override;
 
     llvm::Module* getModule() const;
 };

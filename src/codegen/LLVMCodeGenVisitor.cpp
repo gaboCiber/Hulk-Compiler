@@ -328,6 +328,20 @@ void LLVMCodeGenVisitor::visit(ProgramNode& node) {
     }
 }
 
-void LLVMCodeGenVisitor::visit(CallFuncNode& node){
+void LLVMCodeGenVisitor::visit(CallFuncNode& node) {
+    FunctionInfo* info = ctx.lookupFunction(node.functionName);
+    llvm::Function* func = module->getFunction(node.functionName);
 
+    std::vector<llvm::Value*> llvmArgs;
+
+    for (auto argExpr : node.arguments) {
+        argExpr->accept(*this);
+        llvmArgs.push_back(result);
+    }
+
+    result = builder.CreateCall(func, llvmArgs, "call" + info->node->name + "tmp");
+}
+
+void LLVMCodeGenVisitor::visit(WhileNode& node) {
+    
 }

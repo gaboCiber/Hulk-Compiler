@@ -185,25 +185,29 @@ void TypeCheckerVisitor::visit(CallFuncNode& node){
     }
 
 
-    ctx.pushScope(info->node->scope);
+    for (size_t i = 0; i < node.arguments.size(); ++i) {
+        
+        node.arguments[i]->accept(*this);
+        if(errorFlag)
+            return;
 
-    unsigned i = 0;
-    for (auto args : node.arguments) {
-        args->accept(*this);
+        Type actualType = lastType;
 
-        std::string name = info->node->args.at(i)->name;
-        SymbolInfo* varInfo = ctx.currentScope()->lookup(name);
+        VariableNode* expectedArg = info->node->args[i];
+        SymbolInfo* expectedInfo = info->node->scope->lookup(expectedArg->name);
 
-        if(varInfo->type != lastType){
+        if (!expectedInfo) {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el argumento '" + name + "' de la funcion '" + info->node->name + "' es de tipo '" + TypeToString(varInfo->type) + "' . No de tipo '" + TypeToString(lastType) +  "' .\n";
+            errorMsg = "[Internal error] Argumento '" + expectedArg->name + "' no está definido en el scope de la función '" + info->node->name + "'.\n";
             return;
         }
-        
-        i++;
-    } 
 
-    ctx.popScope();
+        if (expectedInfo->type != actualType) {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el argumento '" + expectedArg->name + "' de la funcion '" + info->node->name + "' es de tipo '" + TypeToString(expectedInfo->type) + "' . No de tipo '" + TypeToString(actualType) +  "' .\n";
+            return;
+        }
+    }
 
     lastType = info->returnType;
 }
