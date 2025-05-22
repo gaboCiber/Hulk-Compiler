@@ -21,6 +21,9 @@ extern int yylineno;
 "in"                  return IN;
 "function"            return FUNCTION;
 "while"               return WHILE;
+"if"                  return IF;
+"else"                return ELSE;
+"elif"                return ELIF;
 "true"                { yylval.bval = true; return BOOL; }
 "false"               { yylval.bval = false; return BOOL; }
 

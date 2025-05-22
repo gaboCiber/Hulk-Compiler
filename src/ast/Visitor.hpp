@@ -12,6 +12,7 @@ class FunctionNode;
 class ProgramNode;
 class CallFuncNode;
 class WhileNode;
+class IfNode;
 
 class Visitor {
 public:
@@ -29,5 +30,6 @@ public:
     virtual void visit(ProgramNode& node) = 0;
     virtual void visit(CallFuncNode& node) = 0;
     virtual void visit(WhileNode& node) = 0;
-    
+    virtual void visit(IfNode& node) = 0;
+
 };

@@ -5,6 +5,7 @@
 #include "ast/ASTNode.hpp"
 #include <vector>
 #include <memory>
+#include <utility>
 
 extern int yylex(void);
 extern int yyerror(const char*);
@@ -29,6 +30,8 @@ ProgramNode* root = new ProgramNode();
     std::vector<std::pair<VariableNode*, ASTNode*>>* bindings;
     std::vector<VariableNode*>* args;
     std::vector<ASTNode*>* expr_list;
+    std::pair<ASTNode*, ASTNode*>* cond_pair;
+    std::vector<std::pair<ASTNode*, ASTNode*>>* cond_list;
 }
 
 %token <fval> FLOAT
@@ -37,7 +40,7 @@ ProgramNode* root = new ProgramNode();
 %token PLUS MINUS TIMES DIV POW UMINUS CONCAT
 %token GREATER LESS GREATER_THAN LESS_THAN 
 %token AND OR NOT
-%token LPAREN RPAREN SEMICOLON LKEY RKEY LET IN ASSIGNM COMA LAMBDA FUNCTION WHILE
+%token LPAREN RPAREN SEMICOLON LKEY RKEY LET IN ASSIGNM COMA LAMBDA FUNCTION WHILE IF ELSE ELIF
 
 %type <node> program expr toplevel_item
 %type <block> block_lines statements
@@ -45,7 +48,12 @@ ProgramNode* root = new ProgramNode();
 %type <bindings> assingments
 %type <args> arguments
 %type <expr_list> args expr_list
+%type <cond_pair> elif_clause
+%type <cond_list> elif_sequence
 
+%nonassoc LOWER_THAN_ELSE
+%nonassoc ELSE
+%nonassoc ELIF
 %nonassoc ASSIGNM DESTRUCTIVE_ASSIGNM LAMBDA
 %right NOT
 %left AND OR
@@ -136,6 +144,24 @@ assingments:
     }
   ;
 
+elif_clause:
+    ELIF LPAREN expr RPAREN expr        { $$ = new std::pair<ASTNode*, ASTNode*>($3, $5); }
+  | ELIF LPAREN expr RPAREN block_lines { $$ = new std::pair<ASTNode*, ASTNode*>($3, $5); }
+  ;
+
+elif_sequence:
+    elif_clause {
+        $$ = new std::vector<std::pair<ASTNode*, ASTNode*>>();
+        $$->push_back(*$1);
+        delete $1;
+    }
+  | elif_sequence elif_clause {
+        $1->push_back(*$2);
+        delete $2;
+        $$ = $1;
+    }
+  ;
+
 expr:
     FLOAT                           { $$ = new FloatNode($1, yylineno); }
   | BOOL                            { $$ = new BoolNode($1, yylineno); }
@@ -180,6 +206,56 @@ expr:
         BlockNode* block = new BlockNode();
         block->push_back($6);
         $$ = new WhileNode($3, block, yylineno);
+    }
+  | IF LPAREN expr RPAREN expr ELSE expr {
+        $$ = new IfNode($3, $5, $7, yylineno);
+    }
+  | IF LPAREN expr RPAREN block_lines ELSE expr {
+        $$ = new IfNode($3, $5, $7, yylineno);
+    }
+  | IF LPAREN expr RPAREN expr ELSE block_lines {
+        $$ = new IfNode($3, $5, $7, yylineno);
+    }
+  | IF LPAREN expr RPAREN block_lines ELSE block_lines {
+        $$ = new IfNode($3, $5, $7, yylineno);
+    }
+  | IF LPAREN expr RPAREN expr %prec LOWER_THAN_ELSE {
+        $$ = new IfNode($3, $5, nullptr, yylineno);
+    }
+  | IF LPAREN expr RPAREN block_lines %prec LOWER_THAN_ELSE {
+        $$ = new IfNode($3, $5, nullptr, yylineno);
+    }
+  | IF LPAREN expr RPAREN expr elif_sequence ELSE expr {
+        IfNode* ifNode = new IfNode($3, $5, $8, yylineno);
+        for (const auto& elif : *$6) {
+            ifNode->addElifBranch(elif.first, elif.second);
+        }
+        delete $6;
+        $$ = ifNode;
+    }
+  | IF LPAREN expr RPAREN block_lines elif_sequence ELSE expr {
+        IfNode* ifNode = new IfNode($3, $5, $8, yylineno);
+        for (const auto& elif : *$6) {
+            ifNode->addElifBranch(elif.first, elif.second);
+        }
+        delete $6;
+        $$ = ifNode;
+    }
+  | IF LPAREN expr RPAREN expr elif_sequence ELSE block_lines {
+        IfNode* ifNode = new IfNode($3, $5, $8, yylineno);
+        for (const auto& elif : *$6) {
+            ifNode->addElifBranch(elif.first, elif.second);
+        }
+        delete $6;
+        $$ = ifNode;
+    }
+  | IF LPAREN expr RPAREN block_lines elif_sequence ELSE block_lines {
+        IfNode* ifNode = new IfNode($3, $5, $8, yylineno);
+        for (const auto& elif : *$6) {
+            ifNode->addElifBranch(elif.first, elif.second);
+        }
+        delete $6;
+        $$ = ifNode;
     }
   ;
 

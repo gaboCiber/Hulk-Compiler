@@ -143,3 +143,18 @@ public:
     void accept(Visitor& visitor) override;
     ~WhileNode();
 };
+
+class IfNode : public ASTNode {
+    std::vector<std::pair<ASTNode*, ASTNode*>> branches; // (condición, cuerpo)
+    ASTNode* elseBranch;
+    
+public:
+    IfNode(ASTNode* cond, ASTNode* then, ASTNode* elseBr, int line);
+    void addElifBranch(ASTNode* cond, ASTNode* branch);
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;
+    ~IfNode();
+    
+    const auto& getBranches() const { return branches; }
+    ASTNode* getElseBranch() const { return elseBranch; }
+};

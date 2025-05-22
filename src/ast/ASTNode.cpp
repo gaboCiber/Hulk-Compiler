@@ -223,3 +223,45 @@ WhileNode::~WhileNode() {
     delete condition;
     delete body;
 }
+
+
+
+IfNode::IfNode(ASTNode* cond, ASTNode* then, ASTNode* elseBr, int line)
+    : ASTNode(line), elseBranch(elseBr) {
+    branches.emplace_back(cond, then);
+}
+
+void IfNode::addElifBranch(ASTNode* cond, ASTNode* branch) {
+    branches.emplace_back(cond, branch);
+}
+
+void IfNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "If:\n";
+    
+    for (size_t i = 0; i < branches.size(); ++i) {
+        const auto& [cond, branch] = branches[i];
+        std::string label = (i == 0) ? "If" : "Elif";
+        
+        std::cout << std::string(indent + 2, ' ') << label << " Condition:\n";
+        cond->print(indent + 4);
+        std::cout << std::string(indent + 2, ' ') << label << " Body:\n";
+        branch->print(indent + 4);
+    }
+    
+    if (elseBranch) {
+        std::cout << std::string(indent + 2, ' ') << "Else:\n";
+        elseBranch->print(indent + 4);
+    }
+}
+
+void IfNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+IfNode::~IfNode() {
+    for (auto& [cond, branch] : branches) {
+        delete cond;
+        delete branch;
+    }
+    delete elseBranch;
+}
