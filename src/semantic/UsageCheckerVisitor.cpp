@@ -84,3 +84,17 @@ void UsageCheckerVisitor::visit(CallFuncNode& node){
             return;
     }
 }
+
+void UsageCheckerVisitor::visit(WhileNode& node) {
+    node.condition->accept(*this);
+    if(errorFlag)
+            return;
+
+    node.body->accept(*this);
+    if(errorFlag)
+            return;
+}
+
+void UsageCheckerVisitor::visit(IfNode& node) {
+    
+}

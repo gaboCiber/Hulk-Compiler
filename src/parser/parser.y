@@ -202,9 +202,9 @@ expr:
   | WHILE LPAREN expr RPAREN block_lines {
         $$ = new WhileNode($3, $5, yylineno);
     }
-  | WHILE LPAREN expr RPAREN LAMBDA expr {
+  | WHILE LPAREN expr RPAREN expr {
         BlockNode* block = new BlockNode();
-        block->push_back($6);
+        block->push_back($5);
         $$ = new WhileNode($3, block, yylineno);
     }
   | IF LPAREN expr RPAREN expr ELSE expr {

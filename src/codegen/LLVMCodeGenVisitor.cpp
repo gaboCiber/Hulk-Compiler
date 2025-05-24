@@ -269,7 +269,6 @@ void LLVMCodeGenVisitor::visit(FunctionNode& node) {
     std::vector<llvm::Type*> argTypes;
     for (VariableNode* arg : node.args) {
         SymbolInfo* argInfo = node.scope->lookup(arg->name);
-        std::cout << llvmTypeName(argInfo->type) << std::endl;
         argTypes.push_back(llvmType(argInfo->type));
     }
 
@@ -343,5 +342,72 @@ void LLVMCodeGenVisitor::visit(CallFuncNode& node) {
 }
 
 void LLVMCodeGenVisitor::visit(WhileNode& node) {
+    llvm::Function* currentFunc = builder.GetInsertBlock()->getParent();
+
+    // Primero generamos el bloque condicional, cuerpo y salida
+    llvm::BasicBlock* condBB = llvm::BasicBlock::Create(context, "while.cond", currentFunc);
+    llvm::BasicBlock* bodyBB = llvm::BasicBlock::Create(context, "while.body");
+    llvm::BasicBlock* endBB  = llvm::BasicBlock::Create(context, "while.end");
+
+    // Evaluamos tipo para reservar almacenamiento
+    llvm::Type* llvmTy;
+    switch (node.returnType) {
+        case Type::Float:
+        case Type::Bool:  // bools como floats
+            llvmTy = builder.getFloatTy();
+            break;
+        case Type::String:
+            llvmTy = builder.getInt8PtrTy();
+            break;
+        default:
+            std::cerr << "[Line " << node.line << "] Error: tipo de while no soportado.\n";
+            result = nullptr;
+            return;
+    }
+
+    // Variable temporal para guardar resultado del cuerpo
+    llvm::AllocaInst* resultVar = builder.CreateAlloca(llvmTy, nullptr, "while.result");
+
+    // Jump a cond
+    builder.CreateBr(condBB);
+    builder.SetInsertPoint(condBB);
+
+    // Evaluar condición
+    node.condition->accept(*this);
+    llvm::Value* condVal = result;
+
+    // Convertir a i1 si es float (para floats y bools representados como float)
+    if (!condVal->getType()->isIntegerTy(1)) {
+        condVal = builder.CreateFCmpONE(
+            condVal,
+            llvm::ConstantFP::get(context, llvm::APFloat(0.0f)),
+            "while.cond.cmp"
+        );
+    }
+
+    // Salto al cuerpo o al final
+    builder.CreateCondBr(condVal, bodyBB, endBB);
+
+    // Cuerpo del bucle
+    currentFunc->getBasicBlockList().push_back(bodyBB);
+    builder.SetInsertPoint(bodyBB);
+
+    node.body->accept(*this);
+
+    // Guardar resultado del cuerpo
+    builder.CreateStore(result, resultVar);
+
+    // Volver a cond
+    builder.CreateBr(condBB);
+
+    // Bloque de salida
+    currentFunc->getBasicBlockList().push_back(endBB);
+    builder.SetInsertPoint(endBB);
+
+    // Leer resultado final
+    result = builder.CreateLoad(llvmTy, resultVar, "while.final");
+}
+
+void LLVMCodeGenVisitor::visit(IfNode& node) {
     
 }

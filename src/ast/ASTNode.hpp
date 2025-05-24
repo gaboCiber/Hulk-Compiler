@@ -3,6 +3,7 @@
 #include <memory>
 #include <iostream>
 #include <vector>
+#include "Type.hpp"
 
 class Visitor;
 class Scope;
@@ -137,6 +138,7 @@ class WhileNode : public ASTNode {
 public:
     ASTNode* condition;
     BlockNode* body;
+    Type returnType;
     
     WhileNode(ASTNode* cond, BlockNode* b, int line);
     void print(int indent = 0) const override;

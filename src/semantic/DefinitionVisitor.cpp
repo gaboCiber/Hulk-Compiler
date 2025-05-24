@@ -89,3 +89,17 @@ void DefinitionVisitor::visit(CallFuncNode& node){
             return;
     }
 }
+
+void DefinitionVisitor::visit(WhileNode& node) {
+    node.condition->accept(*this);
+    if(errorFlag)
+            return;
+
+    node.body->accept(*this);
+    if(errorFlag)
+            return;
+}
+
+void DefinitionVisitor::visit(IfNode& node) {
+    
+}

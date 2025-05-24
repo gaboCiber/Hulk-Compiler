@@ -4,23 +4,6 @@
 #include "ast/ASTNode.hpp"
 #include <llvm/IR/Instructions.h>
 
-enum class Type {
-    Float,
-    Bool,
-    String,
-    Unknown  // útil como valor por defecto
-};
-
-constexpr const char* TypeToString(Type t) {
-    switch (t) {
-        case Type::Float:  return "Float";
-        case Type::Bool:   return "Bool";  
-        case Type::String: return "String";
-        default: return "";
-    }
-}
-
-
 struct SymbolInfo {
     Type type = Type::Unknown;
     //bool isDefined = false;

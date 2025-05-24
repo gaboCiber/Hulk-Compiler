@@ -63,35 +63,36 @@ void TypeInferenceVisitor::visit(BinOpNode& node) {
     Type rightT = lastType;
     if (errorFlag) return;
 
-    Type nodeT;
+    Type typeLR, typeNode;
     
     if (node.op == "+" || node.op == "-" || node.op == "*" || node.op == "/" || node.op == "^") {
-        nodeT = Type::Float;
+        typeLR = typeNode = Type::Float;
     }
     else if (node.op == ">" || node.op == "<" || node.op == ">=" || node.op == "<=") {
-        nodeT = Type::Bool;
+        typeLR = Type::Float;
+        typeNode = Type::Bool;
     }
     else if (node.op == "==" || node.op == "!=") {
-        nodeT = Type::Bool;
+        typeLR = typeNode = Type::Bool;
     }
     else if( node.op == ":="){
-        nodeT = rightT;
+        typeLR = typeNode = rightT;
     }
     else if (node.op == "&" || node.op == "|") {
-        nodeT = Type::Bool;
+        typeLR = typeNode = Type::Bool;
     }
     else if (node.op == "@") {
-        nodeT = Type::String;
+        typeLR = typeNode = Type::String;
     }
     else {
         errorFlag = true;
         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador desconocido '" + node.op + "'.";
     }
     
-    putTypeOnVariables(node.left, nodeT);
-    putTypeOnVariables(node.right, nodeT);
+    putTypeOnVariables(node.left, typeLR);
+    putTypeOnVariables(node.right, typeLR);
 
-    lastType = nodeT;
+    lastType = typeNode;
 }
 
 void TypeInferenceVisitor::visit(BlockNode& node) {
@@ -182,4 +183,20 @@ void TypeInferenceVisitor::visit(CallFuncNode& node){
     } 
 
     lastType = info->returnType;
+}
+
+void TypeInferenceVisitor::visit(WhileNode& node) {
+    node.condition->accept(*this);
+    if(errorFlag)
+            return;
+
+    node.body->accept(*this);
+    if(errorFlag)
+            return;
+
+    node.returnType = lastType;   
+}
+
+void TypeInferenceVisitor::visit(IfNode& node) {
+    
 }

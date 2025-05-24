@@ -1,4 +1,3 @@
-#pragma once
 #include "semantic/Scope.hpp"
 #include <iostream>
 

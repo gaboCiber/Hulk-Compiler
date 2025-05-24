@@ -211,3 +211,33 @@ void TypeCheckerVisitor::visit(CallFuncNode& node){
 
     lastType = info->returnType;
 }
+
+void TypeCheckerVisitor::visit(WhileNode& node) {
+    node.condition->accept(*this);
+    if(errorFlag)
+            return;
+
+    if(lastType != Type::Bool)
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: la condición del while debe ser de tipo booleano.\n";
+        return;
+    }
+
+    node.body->accept(*this);
+    if(errorFlag)
+            return;
+
+    if(lastType != node.returnType)
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferido del bloque while es diferente a su tipo chequeado.\n";
+        return;
+    }
+    
+    //lastType = *node.returnType;
+}
+
+void TypeCheckerVisitor::visit(IfNode& node) {
+    
+}

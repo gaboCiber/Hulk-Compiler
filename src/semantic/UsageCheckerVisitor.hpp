@@ -19,6 +19,8 @@ public:
     void visit(FunctionNode& node) override;
     void visit(ProgramNode& node) override;
     void visit(CallFuncNode& node) override;
+    void visit(WhileNode& node) override;
+    void visit(IfNode& node) override;
 
     bool hasError() const { return errorFlag; }
     const std::string& getError() const { return errorMsg; }
