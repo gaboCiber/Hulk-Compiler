@@ -23,9 +23,7 @@ public:
     Context& ctx;
 
     LLVMCodeGenVisitor(const std::string& moduleName, Context& c);
-    llvm::Type* llvmType(Type t);
-
-    std::string llvmTypeName(Type t);
+    llvm::Type* llvmType(ASTNode& node,Type t);
 
     void visit(FloatNode& node) override;
     void visit(StringNode& node) override;
@@ -42,4 +40,5 @@ public:
     void visit(IfNode& node) override;
 
     llvm::Module* getModule() const;
+
 };

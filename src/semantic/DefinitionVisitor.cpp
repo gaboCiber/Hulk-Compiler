@@ -101,5 +101,19 @@ void DefinitionVisitor::visit(WhileNode& node) {
 }
 
 void DefinitionVisitor::visit(IfNode& node) {
-    
+    for(auto& pair: node.getBranches()){
+        pair.first->accept(*this);
+        if(errorFlag)
+            return;
+
+        pair.second->accept(*this);
+        if(errorFlag)
+            return;
+    }
+
+    if(ASTNode* br = node.getElseBranch()) {
+        br->accept(*this);
+        if(errorFlag)
+            return;
+    }
 }

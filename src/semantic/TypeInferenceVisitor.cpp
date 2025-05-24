@@ -63,34 +63,37 @@ void TypeInferenceVisitor::visit(BinOpNode& node) {
     Type rightT = lastType;
     if (errorFlag) return;
 
-    Type typeLR, typeNode;
+    Type typeL, typeR, typeNode;
     
     if (node.op == "+" || node.op == "-" || node.op == "*" || node.op == "/" || node.op == "^") {
-        typeLR = typeNode = Type::Float;
+        typeL = typeR = typeNode = Type::Float;
     }
     else if (node.op == ">" || node.op == "<" || node.op == ">=" || node.op == "<=") {
-        typeLR = Type::Float;
+        typeL = typeR = Type::Float;
         typeNode = Type::Bool;
     }
     else if (node.op == "==" || node.op == "!=") {
-        typeLR = typeNode = Type::Bool;
+        typeL = leftT;
+        typeR = rightT;
+        typeNode = Type::Bool;
     }
     else if( node.op == ":="){
-        typeLR = typeNode = rightT;
+        typeL = leftT;
+        typeR = typeNode = rightT;
     }
     else if (node.op == "&" || node.op == "|") {
-        typeLR = typeNode = Type::Bool;
+        typeL = typeR = typeNode = Type::Bool;
     }
     else if (node.op == "@") {
-        typeLR = typeNode = Type::String;
+        typeL = typeR = typeNode = Type::String;
     }
     else {
         errorFlag = true;
         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador desconocido '" + node.op + "'.";
     }
     
-    putTypeOnVariables(node.left, typeLR);
-    putTypeOnVariables(node.right, typeLR);
+    putTypeOnVariables(node.left, typeL);
+    putTypeOnVariables(node.right, typeR);
 
     lastType = typeNode;
 }
@@ -199,4 +202,35 @@ void TypeInferenceVisitor::visit(WhileNode& node) {
 
 void TypeInferenceVisitor::visit(IfNode& node) {
     
+    for(auto& pair: node.getBranches()){
+        pair.first->accept(*this);
+        if(errorFlag)
+            return;
+
+        pair.second->accept(*this);
+        if(errorFlag)
+            return;
+        
+        if(lastType == Type::Unknown)
+        {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(pair.second->line) + "] Error semántico: no fue posible inferir el tipo del bloque if/elif.\n";
+            return;
+        }
+    }
+
+    if(ASTNode* br = node.getElseBranch()) {
+        br->accept(*this);
+        if(errorFlag)
+            return;
+
+        if(lastType == Type::Unknown)
+        {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(br->line) + "] Error semántico: no fue posible inferir el tipo del bloque else.\n";
+            return;
+        }
+    }
+
+    node.returnType = lastType;
 }

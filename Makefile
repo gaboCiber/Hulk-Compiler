@@ -53,6 +53,7 @@ build: $(OUT_DIR) $(EXEC) $(SCRIPT_FILE)
 	@echo "✅ Build completo. Ejecutable en $(EXEC)"
 
 compile: build
+	@ rm $(OUT_DIR)/output* || true
 	@echo "🚀 Ejecutando script.hulk y generando IR..."
 	@$(EXEC) < $(SCRIPT_FILE)
 	@$(LLC) $(LLVM_IR) -o $(LLVM_S)

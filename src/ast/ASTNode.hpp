@@ -151,6 +151,8 @@ class IfNode : public ASTNode {
     ASTNode* elseBranch;
     
 public:
+    Type returnType;
+
     IfNode(ASTNode* cond, ASTNode* then, ASTNode* elseBr, int line);
     void addElifBranch(ASTNode* cond, ASTNode* branch);
     void print(int indent = 0) const override;

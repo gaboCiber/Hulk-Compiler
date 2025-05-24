@@ -13,6 +13,21 @@ LLVMCodeGenVisitor::LLVMCodeGenVisitor(const std::string& moduleName, Context& c
     // Nada más aquí. El IR se construye desde ProgramNode
 }
 
+llvm::Type* LLVMCodeGenVisitor::llvmType(ASTNode& node, Type t) {
+    switch (t) {
+        case Type::Float:  
+            return builder.getFloatTy();
+        case Type::Bool:
+           return builder.getInt1Ty();  // bools siguen como floats
+        case Type::String:
+            return builder.getInt8PtrTy();
+        default: 
+            std::cerr << "[Line " << node.line << "] Error: tipo desconocido.\n";
+            exit(1);  // o simplemente: result = nullptr; y maneja eso después
+    }
+
+    return nullptr;
+}
 
 llvm::Module* LLVMCodeGenVisitor::getModule() const {
     return module.get();
@@ -23,9 +38,9 @@ void LLVMCodeGenVisitor::visit(FloatNode& node) {
 }
 
 void LLVMCodeGenVisitor::visit(BoolNode& node) {
-    // Convertimos bool a float (0.0 o 1.0)
-    result = llvm::ConstantFP::get(context, llvm::APFloat(node.value ? 1.0f : 0.0f));
+    result = llvm::ConstantInt::get(builder.getInt1Ty(), node.value);  // i1
 }
+
 
 void LLVMCodeGenVisitor::visit(StringNode& node) {
     // Crea una constante global de tipo string
@@ -62,12 +77,17 @@ void LLVMCodeGenVisitor::visit(UnaryOpNode& node) {
         result = builder.CreateFNeg(operand, "negtmp");
     }
     else if (node.op == "!") {
-        llvm::Value* isTrue = builder.CreateFCmpONE(
-            operand,
-            llvm::ConstantFP::get(context, llvm::APFloat(0.0f)),
-            "isTrue"
-        );
-        result = builder.CreateNot(isTrue, "nottmp");
+        if (operand->getType()->isIntegerTy(1)) {
+            result = builder.CreateNot(operand, "nottmp");
+        } 
+        else {
+            llvm::Value* isTrue = builder.CreateFCmpONE(
+                operand,
+                llvm::ConstantFP::get(context, llvm::APFloat(0.0f)),
+                "isTrue"
+            );
+            result = builder.CreateNot(isTrue, "nottmp");
+        }
     }
 }
 
@@ -111,18 +131,15 @@ void LLVMCodeGenVisitor::visit(BinOpNode& node) {
         result = builder.CreateFCmpONE(lhs, rhs, "neqtmp");
     }
     else if (node.op == "&" || node.op == "|") {
-        // Convertir de float a i1: fcmp one != 0.0
-        lhs = builder.CreateFCmpONE(lhs, llvm::ConstantFP::get(context, llvm::APFloat(0.0f)), "lhs_bool");
-        rhs = builder.CreateFCmpONE(rhs, llvm::ConstantFP::get(context, llvm::APFloat(0.0f)), "rhs_bool");
+        if (!lhs->getType()->isIntegerTy(1))
+            lhs = builder.CreateFCmpONE(lhs, llvm::ConstantFP::get(context, llvm::APFloat(0.0f)), "lhs_bool");
+        if (!rhs->getType()->isIntegerTy(1))
+            rhs = builder.CreateFCmpONE(rhs, llvm::ConstantFP::get(context, llvm::APFloat(0.0f)), "rhs_bool");
 
-        llvm::Value* logic = nullptr;
         if (node.op == "&")
-            logic = builder.CreateAnd(lhs, rhs, "andtmp");
+            result = builder.CreateAnd(lhs, rhs, "andtmp");
         else
-            logic = builder.CreateOr(lhs, rhs, "ortmp");
-
-        // Convertir i1 (bool) de vuelta a float (0.0 o 1.0)
-        result = builder.CreateUIToFP(logic, builder.getFloatTy(), "bool2float");
+            result = builder.CreateOr(lhs, rhs, "ortmp");
     }
     else if (node.op == "@") {
         // Convertir resultado de lhs y rhs
@@ -189,19 +206,7 @@ void LLVMCodeGenVisitor::visit(BlockNode& node) {
 
 void LLVMCodeGenVisitor::visit(VariableNode& node) {
     SymbolInfo* info = ctx.currentScope()->lookup(node.name);
-
-    // Asumimos que la variable fue almacenada como float, bool o string (pointer i8*)
-    llvm::Type* varType;
-    switch (info->type) {
-        case Type::Float:  varType = builder.getFloatTy(); break;
-        case Type::Bool:   varType = builder.getFloatTy(); break; // bools representados como float 0.0 o 1.0
-        case Type::String: varType = builder.getInt8PtrTy(); break;
-        default:
-            std::cerr << "[Line " << node.line << "] Error: tipo desconocido en variable '" << node.name << "'.\n";
-            result = nullptr;
-            return;
-    }
-
+    llvm::Type* varType = llvmType(node, info->type);
     result = builder.CreateLoad(varType, info->llvmValue, "loadtmp");
 }
 
@@ -228,19 +233,11 @@ void LLVMCodeGenVisitor::visit(LetInNode& node) {
         SymbolInfo* info = local->lookup(var->name);
 
         // Crear alocación en la pila
-        llvm::Type* llvmTy;
-        switch (info->type) {
-            case Type::Float:  llvmTy = builder.getFloatTy(); break;
-            case Type::Bool:   llvmTy = builder.getFloatTy(); break;  // seguimos con float para bools
-            case Type::String: llvmTy = builder.getInt8PtrTy(); break;
-            default:
-                std::cerr << "[Line " << var->line << "] Error: tipo desconocido.\n";
-                ctx.popScope();
-                return;
-        }
+        llvm::Type* llvmTy = llvmType(node, info->type);
 
         llvm::Value* alloca = builder.CreateAlloca(llvmTy, nullptr, var->name);
         builder.CreateStore(initValue, alloca);
+        
         //info->value = valueExpr;
         info->llvmValue = alloca;
     }
@@ -251,23 +248,6 @@ void LLVMCodeGenVisitor::visit(LetInNode& node) {
     ctx.popScope();
 }
 
-llvm::Type* LLVMCodeGenVisitor::llvmType(Type t) {
-    switch (t) {
-        case Type::Float:  return builder.getFloatTy();
-        case Type::Bool:   return builder.getFloatTy();  // bools siguen como floats
-        case Type::String: return builder.getInt8PtrTy();
-        default: return nullptr;
-    }
-}
-
-std::string LLVMCodeGenVisitor::llvmTypeName(Type t) {
-    switch (t) {
-        case Type::Float:  return "float";
-        case Type::Bool:   return "bool";
-        case Type::String: return "string";
-        default: return "unknown";
-    }
-}
 
 void LLVMCodeGenVisitor::visit(FunctionNode& node) {
     // Obtener información de tipos desde contexto
@@ -277,11 +257,11 @@ void LLVMCodeGenVisitor::visit(FunctionNode& node) {
     std::vector<llvm::Type*> argTypes;
     for (VariableNode* arg : node.args) {
         SymbolInfo* argInfo = node.scope->lookup(arg->name);
-        argTypes.push_back(llvmType(argInfo->type));
+        argTypes.push_back(llvmType(node, argInfo->type));
     }
 
     // Crear tipo de retorno real
-    llvm::Type* retTy = llvmType(info->returnType);
+    llvm::Type* retTy = llvmType(node, info->returnType);
     llvm::FunctionType* funcType = llvm::FunctionType::get(retTy, argTypes, false);
 
     llvm::Function* func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, node.name, module.get());
@@ -297,7 +277,7 @@ void LLVMCodeGenVisitor::visit(FunctionNode& node) {
         llvmArg.setName(arg->name);
 
         SymbolInfo* argInfo = node.scope->lookup(arg->name);
-        llvm::Type* llvmTy = llvmType(argInfo->type);
+        llvm::Type* llvmTy = llvmType(node, argInfo->type);
 
         llvm::AllocaInst* alloca = builder.CreateAlloca(llvmTy, nullptr, arg->name);
         builder.CreateStore(&llvmArg, alloca);
@@ -358,20 +338,7 @@ void LLVMCodeGenVisitor::visit(WhileNode& node) {
     llvm::BasicBlock* endBB  = llvm::BasicBlock::Create(context, "while.end");
 
     // Evaluamos tipo para reservar almacenamiento
-    llvm::Type* llvmTy;
-    switch (node.returnType) {
-        case Type::Float:
-        case Type::Bool:  // bools como floats
-            llvmTy = builder.getFloatTy();
-            break;
-        case Type::String:
-            llvmTy = builder.getInt8PtrTy();
-            break;
-        default:
-            std::cerr << "[Line " << node.line << "] Error: tipo de while no soportado.\n";
-            result = nullptr;
-            return;
-    }
+    llvm::Type* llvmTy = llvmType(node, node.returnType);
 
     // Variable temporal para guardar resultado del cuerpo
     llvm::AllocaInst* resultVar = builder.CreateAlloca(llvmTy, nullptr, "while.result");
@@ -416,6 +383,152 @@ void LLVMCodeGenVisitor::visit(WhileNode& node) {
     result = builder.CreateLoad(llvmTy, resultVar, "while.final");
 }
 
+
+// void LLVMCodeGenVisitor::visit(IfNode& node) {
+//     llvm::Function* func = builder.GetInsertBlock()->getParent();
+//     llvm::Type* llvmTy = llvmType(node, node.returnType);
+
+//     // Crear bloque de merge (salida del if)
+//     llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(context, "if.merge", func);
+//     llvm::PHINode* phi = builder.CreatePHI(llvmTy, node.getBranches().size() + 1, "iftmp");
+
+//     llvm::BasicBlock* nextCondBB = nullptr;
+//     std::vector<std::pair<llvm::Value*, llvm::BasicBlock*>> incoming;
+
+//     // Recorrer if / elif
+//     for (size_t i = 0; i < node.getBranches().size(); ++i) {
+//         auto [condExpr, bodyExpr] = node.getBranches()[i];
+
+//         if (i > 0) {
+//             builder.SetInsertPoint(nextCondBB);
+//         }
+
+//         // Evaluar condición
+//         condExpr->accept(*this);
+//         llvm::Value* condVal = result;
+//         if (!condVal->getType()->isIntegerTy(1)) {
+//             condVal = builder.CreateFCmpONE(
+//                 condVal,
+//                 llvm::ConstantFP::get(context, llvm::APFloat(0.0f)),
+//                 "ifcond"
+//             );
+//         }
+
+//         // Crear bloques
+//         llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(context, "if.then", func);
+//         nextCondBB = llvm::BasicBlock::Create(context, "if.next", func);
+//         builder.CreateCondBr(condVal, thenBB, nextCondBB);
+
+//         // THEN
+//         builder.SetInsertPoint(thenBB);
+//         bodyExpr->accept(*this);
+//         llvm::Value* thenVal = result;
+//         builder.CreateBr(mergeBB);
+
+//         incoming.emplace_back(thenVal, thenBB);
+//     }
+
+//     if (ASTNode* elseBranch = node.getElseBranch()) {
+//     llvm::BasicBlock* elseBB = builder.GetInsertBlock(); // el último nextcond creado
+//     elseBranch->accept(*this);
+//     llvm::Value* elseVal = result;
+//     if (phi && elseVal)
+//         phi->addIncoming(elseVal, elseBB);
+//     builder.CreateBr(mergeBB);
+//     } else {
+//         // ELSE no existe, así que el último nextcond quedó como bloque actual.
+//         llvm::BasicBlock* emptyBB = builder.GetInsertBlock();
+//         builder.CreateBr(mergeBB); // hay que saltar al merge
+//         if (phi)
+//             phi->addIncoming(llvm::UndefValue::get(llvmTy), emptyBB); // valor por defecto
+//     }
+
+//     // MERGE block
+//     func->getBasicBlockList().push_back(mergeBB);
+//     builder.SetInsertPoint(mergeBB);
+
+//     for (const auto& [val, bb] : incoming) {
+//         phi->addIncoming(val, bb);
+//     }
+
+//     result = phi;
+// }
+
 void LLVMCodeGenVisitor::visit(IfNode& node) {
+    llvm::Function* func = builder.GetInsertBlock()->getParent();
+    llvm::Type* llvmTy = llvmType(node, node.returnType);
     
+    std::vector<std::pair<llvm::BasicBlock*, llvm::BasicBlock*>> conditionBlocks; // (condBB, thenBB)
+    
+    // Crear bloques para cada condición
+    for (size_t i = 0; i < node.getBranches().size(); ++i) {
+        llvm::BasicBlock* condBB = llvm::BasicBlock::Create(context, 
+            i == 0 ? "if.cond" : "elif.cond", func);
+        llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(context, 
+            i == 0 ? "if.then" : "elif.then", func);
+        conditionBlocks.emplace_back(condBB, thenBB);
+    }
+    
+    // Bloque else (siempre existe en Hulk)
+    llvm::BasicBlock* elseBB = llvm::BasicBlock::Create(context, "if.else", func);
+    
+    llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(context, "if.merge", func);
+
+    // Empezar con el primer bloque condicional
+    builder.CreateBr(conditionBlocks[0].first);
+    
+    // Generar código para cada condición
+    for (size_t i = 0; i < node.getBranches().size(); ++i) {
+        auto& [condBB, thenBB] = conditionBlocks[i];
+        auto [condExpr, bodyExpr] = node.getBranches()[i];
+        
+        // Condición
+        builder.SetInsertPoint(condBB);
+        condExpr->accept(*this);
+        llvm::Value* condVal = result;
+        
+        if (!condVal->getType()->isIntegerTy(1)) {
+            condVal = builder.CreateFCmpONE(
+                condVal,
+                llvm::ConstantFP::get(context, llvm::APFloat(0.0f)),
+                "ifcond"
+            );
+        }
+        
+        // Determinar siguiente bloque
+        llvm::BasicBlock* nextBB = (i < node.getBranches().size() - 1) 
+            ? conditionBlocks[i + 1].first 
+            : elseBB;
+        
+        builder.CreateCondBr(condVal, thenBB, nextBB);
+        
+        // Cuerpo THEN
+        builder.SetInsertPoint(thenBB);
+        bodyExpr->accept(*this);
+        builder.CreateBr(mergeBB);
+    }
+    
+    // Generar ELSE
+    builder.SetInsertPoint(elseBB);
+    node.getElseBranch()->accept(*this);
+    builder.CreateBr(mergeBB);
+    
+    // Generar MERGE con PHI node
+    builder.SetInsertPoint(mergeBB);
+    llvm::PHINode* phi = builder.CreatePHI(llvmTy, node.getBranches().size() + 1, "iftmp");
+    
+    // Agregar entradas desde los THEN
+    for (size_t i = 0; i < node.getBranches().size(); ++i) {
+        builder.SetInsertPoint(conditionBlocks[i].second);
+        node.getBranches()[i].second->accept(*this);
+        phi->addIncoming(result, conditionBlocks[i].second);
+    }
+    
+    // Agregar entrada desde ELSE
+    builder.SetInsertPoint(elseBB);
+    node.getElseBranch()->accept(*this);
+    phi->addIncoming(result, elseBB);
+    
+    builder.SetInsertPoint(mergeBB);
+    result = phi;
 }

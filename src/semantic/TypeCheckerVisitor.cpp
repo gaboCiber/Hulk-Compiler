@@ -239,5 +239,41 @@ void TypeCheckerVisitor::visit(WhileNode& node) {
 }
 
 void TypeCheckerVisitor::visit(IfNode& node) {
-    
+    for(auto& pair: node.getBranches()){
+        pair.first->accept(*this);
+        if(errorFlag)
+            return;
+
+        if(lastType != Type::Bool)
+        {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(pair.first->line) + "] Error semántico: la condición del if/elif debe ser de tipo booleano.\n";
+            return;
+        }
+
+        pair.second->accept(*this);
+        if(errorFlag)
+            return;
+
+        if(lastType != node.returnType)
+        {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(pair.second->line) + "] Error semántico: todos los bloque if/elif deben retornar el mismo tipo.\n";
+            return;
+        }
+    }
+
+    if(ASTNode* br = node.getElseBranch()) {
+        br->accept(*this);
+        if(errorFlag)
+            return;
+
+        if(lastType != node.returnType)
+        {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(br->line) + "] Error semántico: todos los bloque else deben retornar el mismo tipo.\n";
+            return;
+        }
+    }
+
 }
