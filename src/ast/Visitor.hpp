@@ -13,6 +13,17 @@ class ProgramNode;
 class CallFuncNode;
 class WhileNode;
 class IfNode;
+class TypeMember;
+class TypeNode;
+class InheritsNode;
+class AttributeNode;
+class MethodNode;
+class NewNode;
+class MemberAccessNode;
+class SelfNode;
+class BaseNode;
+class MethodCallNode;
+
 
 class Visitor {
 public:
@@ -31,5 +42,15 @@ public:
     virtual void visit(CallFuncNode& node) = 0;
     virtual void visit(WhileNode& node) = 0;
     virtual void visit(IfNode& node) = 0;
-
+    virtual void visit(TypeMember& node) = 0;
+    virtual void visit(TypeNode& node) = 0;
+    virtual void visit(InheritsNode& node) = 0;
+    virtual void visit(AttributeNode& node) = 0;
+    virtual void visit(MethodNode& node) = 0;
+    virtual void visit(NewNode& node) = 0;
+    virtual void visit(MemberAccessNode& node) = 0;
+    virtual void visit(SelfNode& node) = 0;
+    virtual void visit(BaseNode& node) = 0;
+    virtual void visit(MethodCallNode& node) = 0;
+    
 };

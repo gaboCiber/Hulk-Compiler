@@ -26,6 +26,11 @@ extern int yylineno;
 "elif"                return ELIF;
 "true"                { yylval.bval = true; return BOOL; }
 "false"               { yylval.bval = false; return BOOL; }
+"type"                return TYPE;
+"new"                 return NEW;
+"inherits"            return INHERITS;
+"self"                return SELF;
+"base"                return BASE;
 
 [a-zA-Z_][a-zA-Z0-9_]* { yylval.sval = strdup(yytext); return ID; }
 [0-9]+\.[0-9]+         { yylval.fval = atof(yytext); return FLOAT; }
@@ -55,6 +60,7 @@ extern int yylineno;
 "|"                   return OR;
 "!"                   return NOT;
 "@"                   return CONCAT;
+"."                   return DOT;
 
 .                     { fprintf(stderr, "[Line %d] Lexer error: símbolo no reconocido '%s'\n", yylineno, yytext); exit(1); }
 
