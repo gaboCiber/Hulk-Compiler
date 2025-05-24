@@ -36,17 +36,15 @@ int main() {
         std::cout << "\n🔧 Código LLVM IR generado:\n";
         codegen.getModule()->print(llvm::outs(), nullptr);
 
-
-
-        // // Guardar en archivo .ll
-        // std::error_code EC;
-        // llvm::raw_fd_ostream outFile("build/output.ll", EC, llvm::sys::fs::OF_Text);
-        // if (!EC) {
-        //     codegen.getModule()->print(outFile, nullptr);
-        //     std::cout << "\n💾 IR guardado en build/output.ll\n";
-        // } else {
-        //     std::cerr << "❌ No se pudo guardar IR: " << EC.message() << "\n";
-        // }
+        // Guardar en archivo .ll
+        std::error_code EC;
+        llvm::raw_fd_ostream outFile("hulk/output.ll", EC, llvm::sys::fs::OF_Text);
+        if (!EC) {
+            codegen.getModule()->print(outFile, nullptr);
+            std::cout << "\n💾 IR guardado en hulk/output.ll\n";
+        } else {
+            std::cerr << "❌ No se pudo guardar IR: " << EC.message() << "\n";
+        }
     }
 
     delete root;

@@ -19,6 +19,7 @@ parser.tab.h
 hulk-compiler
 *.exe
 script.hulk
+script.hulk.ll
 
 
 # === Archivos de prueba/historial temporal ===

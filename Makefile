@@ -2,6 +2,8 @@
 CXX = g++
 FLEX = flex
 BISON = bison
+LLC = llc
+CLANG = clang
 
 CXXFLAGS = -Wall -std=c++17 -Isrc -Isrc/ast -Ihulk/parser
 
@@ -41,17 +43,24 @@ OBJS = $(MAIN_OBJ) $(LEX_OBJ) $(YACC_OBJ) $(CPP_OBJ)
 EXEC = $(OUT_DIR)/hulk-compiler
 SCRIPT_FILE = script.hulk
 LLVM_IR = $(OUT_DIR)/output.ll
+LLVM_S = $(OUT_DIR)/output.s
 
 # === TARGETS ===
 
 all: compile
 
-compile: $(OUT_DIR) $(EXEC) $(SCRIPT_FILE)
+build: $(OUT_DIR) $(EXEC) $(SCRIPT_FILE)
 	@echo "✅ Build completo. Ejecutable en $(EXEC)"
 
-execute: compile
+compile: build
 	@echo "🚀 Ejecutando script.hulk y generando IR..."
 	@$(EXEC) < $(SCRIPT_FILE)
+	@$(LLC) $(LLVM_IR) -o $(LLVM_S)
+	@$(CLANG) $(LLVM_S) -o $(OUT_DIR)/output
+
+execute: compile
+	@echo "🚀 Ejecutando LLVM IR ..."
+	@./$(OUT_DIR)/output
 
 clean:
 	rm -rf $(OUT_DIR)

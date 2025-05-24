@@ -110,12 +110,20 @@ void LLVMCodeGenVisitor::visit(BinOpNode& node) {
     else if (node.op == "!=") {
         result = builder.CreateFCmpONE(lhs, rhs, "neqtmp");
     }
-    else if (node.op == "&") {
-        result = builder.CreateAnd(lhs, rhs, "andtmp");
+    else if (node.op == "&" || node.op == "|") {
+        // Convertir de float a i1: fcmp one != 0.0
+        lhs = builder.CreateFCmpONE(lhs, llvm::ConstantFP::get(context, llvm::APFloat(0.0f)), "lhs_bool");
+        rhs = builder.CreateFCmpONE(rhs, llvm::ConstantFP::get(context, llvm::APFloat(0.0f)), "rhs_bool");
+
+        llvm::Value* logic = nullptr;
+        if (node.op == "&")
+            logic = builder.CreateAnd(lhs, rhs, "andtmp");
+        else
+            logic = builder.CreateOr(lhs, rhs, "ortmp");
+
+        // Convertir i1 (bool) de vuelta a float (0.0 o 1.0)
+        result = builder.CreateUIToFP(logic, builder.getFloatTy(), "bool2float");
     }
-    else if (node.op == "|") {
-        result = builder.CreateOr(lhs, rhs, "ortmp");
-    }  
     else if (node.op == "@") {
         // Convertir resultado de lhs y rhs
         node.left->accept(*this);
