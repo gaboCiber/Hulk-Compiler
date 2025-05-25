@@ -112,3 +112,44 @@ void UsageCheckerVisitor::visit(IfNode& node) {
             return;
     }
 }
+
+void UsageCheckerVisitor::visit(TypeMember& node){
+
+}
+
+void UsageCheckerVisitor::visit(TypeNode& node){
+
+}
+
+void UsageCheckerVisitor::visit(InheritsNode& node){
+
+}
+
+void UsageCheckerVisitor::visit(AttributeNode& node){
+
+}
+
+void UsageCheckerVisitor::visit(MethodNode& node){
+
+}
+
+void UsageCheckerVisitor::visit(NewNode& node){
+
+}
+
+void UsageCheckerVisitor::visit(MemberAccessNode& node){
+
+}
+
+void UsageCheckerVisitor::visit(SelfNode& node){
+
+}
+
+void UsageCheckerVisitor::visit(BaseNode& node){
+
+}
+
+void UsageCheckerVisitor::visit(MethodCallNode& node){
+
+}
+    

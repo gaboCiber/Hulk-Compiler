@@ -117,3 +117,44 @@ void DefinitionVisitor::visit(IfNode& node) {
             return;
     }
 }
+
+void DefinitionVisitor::visit(TypeMember& node){
+
+}
+
+void DefinitionVisitor::visit(TypeNode& node){
+
+}
+
+void DefinitionVisitor::visit(InheritsNode& node){
+
+}
+
+void DefinitionVisitor::visit(AttributeNode& node){
+
+}
+
+void DefinitionVisitor::visit(MethodNode& node){
+
+}
+
+void DefinitionVisitor::visit(NewNode& node){
+
+}
+
+void DefinitionVisitor::visit(MemberAccessNode& node){
+
+}
+
+void DefinitionVisitor::visit(SelfNode& node){
+
+}
+
+void DefinitionVisitor::visit(BaseNode& node){
+
+}
+
+void DefinitionVisitor::visit(MethodCallNode& node){
+
+}
+    

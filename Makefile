@@ -4,6 +4,7 @@ FLEX = flex
 BISON = bison
 LLC = llc
 CLANG = clang
+CC = gcc
 
 CXXFLAGS = -Wall -std=c++17 -Isrc -Isrc/ast -Ihulk/parser
 
@@ -33,6 +34,10 @@ MAIN_OBJ = $(OUT_DIR)/main.o
 LEX_OBJ = $(OUT_DIR)/lexer/lex.yy.o
 YACC_OBJ = $(OUT_DIR)/parser/parser.tab.o
 
+# Runtime para el LLVM IR
+RUNTIME_SRC = $(SRC_DIR)/codegen/runtime.c
+RUNTIME_OBJ = $(OUT_DIR)/codegen/runtime.o
+
 # Detectar automáticamente todos los *.cpp de src/
 CPP_SRC := $(shell find $(SRC_DIR) -name "*.cpp" ! -name "main.cpp")
 CPP_OBJ := $(patsubst $(SRC_DIR)/%.cpp, $(OUT_DIR)/%.o, $(CPP_SRC))
@@ -53,11 +58,12 @@ build: $(OUT_DIR) $(EXEC) $(SCRIPT_FILE)
 	@echo "✅ Build completo. Ejecutable en $(EXEC)"
 
 compile: build
-	@ rm $(OUT_DIR)/output* || true
+	@rm $(OUT_DIR)/output* || true
 	@echo "🚀 Ejecutando script.hulk y generando IR..."
 	@$(EXEC) < $(SCRIPT_FILE)
 	@$(LLC) $(LLVM_IR) -o $(LLVM_S)
-	@$(CLANG) $(LLVM_S) -o $(OUT_DIR)/output
+	@$(CC) -c $(RUNTIME_SRC) -o $(RUNTIME_OBJ)     
+	@$(CLANG) -fPIE -no-pie $(LLVM_S) $(RUNTIME_OBJ) -o $(OUT_DIR)/output
 
 execute: compile
 	@echo "🚀 Ejecutando LLVM IR ..."

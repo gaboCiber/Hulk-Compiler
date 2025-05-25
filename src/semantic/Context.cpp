@@ -3,6 +3,7 @@
 Context::Context() {
     globalScope = new Scope(nullptr); // raíz
     scopeStack.push_back(globalScope);
+    initializeBuiltins();
 }
 
 Context::~Context() {
@@ -10,6 +11,81 @@ Context::~Context() {
         delete s;
     }
 }
+
+void Context::initializeBuiltins() {
+    // Constantes matemáticas
+    defineBuiltinConstant("PI", Type::Float, new FloatNode(3.141592653589793, -1));
+    defineBuiltinConstant("E", Type::Float, new FloatNode(2.718281828459045, -1));
+
+    // Funciones matemáticas (todas toman y retornan Float)
+    defineBuiltinFunction("sin", Type::Float, {Type::Float});
+    defineBuiltinFunction("cos", Type::Float, {Type::Float});
+    defineBuiltinFunction("sqrt", Type::Float, {Type::Float});
+    defineBuiltinFunction("log", Type::Float, {Type::Float});
+    defineBuiltinFunction("exp", Type::Float, {Type::Float});
+    
+    // Funciones con efectos secundarios
+    defineBuiltinFunction("print", Type::Any, {Type::Any}, true);
+    defineBuiltinFunction("rand", Type::Float, {});
+    
+}
+
+bool Context::defineBuiltinFunction(const std::string& name, Type returnType, const std::vector<Type>& argTypes, bool returnsArgumentType) {
+    if (builtinTable.count(name)) 
+        return false;
+    
+    // Crear nodo de función dummy (no se usa para built-ins reales)
+    auto* funcNode = new FunctionNode(name, {}, nullptr, -1);
+    
+    builtinTable[name] = {
+        BuiltinType::FUNCTION,
+        returnType,
+        argTypes,
+        nullptr,
+        returnsArgumentType
+    };
+    
+    // Registrar también en la tabla de funciones
+    functionTable[name] = {
+        funcNode,
+        returnType,
+        true,  // isBuiltin
+        &builtinTable[name]
+    };
+    
+    return true;
+}
+
+bool Context::defineBuiltinConstant(const std::string& name, Type type, ASTNode* value) {
+    if (builtinTable.count(name)) return false;
+    
+    builtinTable[name] = {
+        BuiltinType::CONSTANT,
+        type,
+        {},  // No hay argumentos
+        value,
+        true
+    };
+    
+    // Registrar en el scope global
+    globalScope->define(name, value);
+    auto* info = globalScope->localLookup(name);
+    info->type = type;
+    info->isBuiltin = true;
+    info->isConstant = true;
+    
+    return true;
+}
+
+bool Context::isBuiltin(const std::string& name) const {
+    return builtinTable.count(name) > 0;
+}
+
+BuiltinInfo* Context::lookupBuiltin(const std::string& name) {
+    auto it = builtinTable.find(name);
+    return (it != builtinTable.end()) ? &it->second : nullptr;
+}
+
 
 void Context::pushScope(Scope* scope) {
     scopeStack.push_back(scope);

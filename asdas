@@ -1,0 +1,40 @@
+void LLVMCodeGenVisitor::visit(TypeMember& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(TypeNode& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(InheritsNode& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(AttributeNode& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(MethodNode& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(NewNode& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(MemberAccessNode& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(SelfNode& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(BaseNode& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(MethodCallNode& node){
+
+}
+    

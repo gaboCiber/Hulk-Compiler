@@ -4,6 +4,7 @@ enum class Type {
     Float,
     Bool,
     String,
+    Any,
     Unknown 
 };
 
@@ -13,6 +14,7 @@ constexpr const char* TypeToString(Type t) {
         case Type::Bool:   return "Bool";  
         case Type::String: return "String";
         case Type::Unknown: return "Unknown";
+        case Type::Any:     return "Any";
         default: return "";
     }
 }

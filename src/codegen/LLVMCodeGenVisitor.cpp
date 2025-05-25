@@ -41,33 +41,30 @@ void LLVMCodeGenVisitor::visit(BoolNode& node) {
     result = llvm::ConstantInt::get(builder.getInt1Ty(), node.value);  // i1
 }
 
-
 void LLVMCodeGenVisitor::visit(StringNode& node) {
-    // Crea una constante global de tipo string
-    llvm::Constant* strConstant = llvm::ConstantDataArray::getString(context, node.value, true);
-
-    llvm::ArrayType* strType = llvm::ArrayType::get(llvm::Type::getInt8Ty(context), node.value.size() + 1);
+    // Crear constante global con atributos correctos
     llvm::GlobalVariable* strVar = new llvm::GlobalVariable(
         *module,
-        strType,
-        true,  // constante
+        llvm::ArrayType::get(llvm::Type::getInt8Ty(context), node.value.size() + 1),
+        true,  // isConstant
         llvm::GlobalValue::PrivateLinkage,
-        strConstant,
+        llvm::ConstantDataArray::getString(context, node.value),
         ".str"
     );
-
-    // Obtener puntero a primer carácter (i8*) con GEP
-    llvm::Value* strPtr = builder.CreateInBoundsGEP(
-        strType,
+    
+    strVar->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+    strVar->setAlignment(llvm::Align(1));
+    
+    result = builder.CreateInBoundsGEP(
+        strVar->getValueType(),
         strVar,
-        { llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0),
-          llvm::ConstantInt::get(llvm::Type::getInt32Ty(context), 0) },
-        "strptr"
+        {
+            llvm::ConstantInt::get(context, llvm::APInt(32, 0)),
+            llvm::ConstantInt::get(context, llvm::APInt(32, 0))
+        },
+        "str_ptr"
     );
-
-    result = strPtr;  // guarda puntero a string como resultado
 }
-
 
 void LLVMCodeGenVisitor::visit(UnaryOpNode& node) {
     node.node->accept(*this);
@@ -93,8 +90,13 @@ void LLVMCodeGenVisitor::visit(UnaryOpNode& node) {
 
 
 void LLVMCodeGenVisitor::visit(BinOpNode& node) {
-    node.left->accept(*this);
-    llvm::Value* lhs = result;
+    
+    llvm::Value* lhs; 
+    if(node.op != ":=")
+    {
+        node.left->accept(*this);
+        lhs = result;
+    }
 
     node.right->accept(*this);
     llvm::Value* rhs = result;
@@ -141,58 +143,23 @@ void LLVMCodeGenVisitor::visit(BinOpNode& node) {
         else
             result = builder.CreateOr(lhs, rhs, "ortmp");
     }
-    else if (node.op == "@") {
-        // Convertir resultado de lhs y rhs
-        node.left->accept(*this);
-        llvm::Value* lhs = result;
-
-        node.right->accept(*this);
-        llvm::Value* rhs = result;
-
-        // Funciones necesarias
-        auto getFunc = [&](const std::string& name, llvm::FunctionType* type) -> llvm::Function* {
-            llvm::Function* f = module->getFunction(name);
-            if (!f)
-                f = llvm::Function::Create(type, llvm::Function::ExternalLinkage, name, module.get());
-            return f;
-        };
-
-        llvm::Function* strlenFunc = getFunc("strlen", llvm::FunctionType::get(builder.getInt64Ty(), { builder.getInt8PtrTy() }, false));
-        llvm::Function* mallocFunc = getFunc("malloc", llvm::FunctionType::get(builder.getInt8PtrTy(), { builder.getInt64Ty() }, false));
-        llvm::Function* strcpyFunc = getFunc("strcpy", llvm::FunctionType::get(builder.getInt8PtrTy(), { builder.getInt8PtrTy(), builder.getInt8PtrTy() }, false));
-        llvm::Function* strcatFunc = getFunc("strcat", llvm::FunctionType::get(builder.getInt8PtrTy(), { builder.getInt8PtrTy(), builder.getInt8PtrTy() }, false));
-
-        // strlen(lhs) + strlen(rhs) + 1
-        llvm::Value* lhsLen = builder.CreateCall(strlenFunc, lhs, "lhs_len");
-        llvm::Value* rhsLen = builder.CreateCall(strlenFunc, rhs, "rhs_len");
-        llvm::Value* totalLen = builder.CreateAdd(lhsLen, rhsLen, "sum_len");
-        llvm::Value* one = llvm::ConstantInt::get(builder.getInt64Ty(), 1);
-        llvm::Value* finalLen = builder.CreateAdd(totalLen, one, "total_len");
-
-        // malloc
-        llvm::Value* buffer = builder.CreateCall(mallocFunc, finalLen, "str_buf");
-
-        // strcpy(buf, lhs)
-        builder.CreateCall(strcpyFunc, { buffer, lhs });
-
-        // strcat(buf, rhs)
-        builder.CreateCall(strcatFunc, { buffer, rhs });
-
-        result = buffer;  // buffer contiene la cadena resultante
+    else if (node.op == "@") { 
+        llvm::Function* concatFunc = getBuiltinFunction(
+            "hulk_string_concat",
+            builder.getInt8PtrTy(),
+            {builder.getInt8PtrTy(), builder.getInt8PtrTy()}
+        );
+        
+        result = builder.CreateCall(concatFunc, {lhs, rhs}, "concat");
     }
     if (node.op == ":=") {
-        VariableNode* var = dynamic_cast<VariableNode*>(node.left);
 
-        SymbolInfo* info = ctx.currentScope()->lookup(var->name);
-
-        node.right->accept(*this);  // Evalúa el nuevo valor
-        llvm::Value* newVal = result;
-
-        // Hacer el store en el alloca
-        builder.CreateStore(newVal, info->llvmValue);
-
-        result = newVal;  // := devuelve el valor asignado
-        return;
+        if (VariableNode* var = dynamic_cast<VariableNode*>(node.left)) {
+            SymbolInfo* info = ctx.currentScope()->lookup(var->name);
+            builder.CreateStore(rhs, info->llvmValue);
+            result = rhs;
+        } 
+    return;
     }
 
 
@@ -206,8 +173,26 @@ void LLVMCodeGenVisitor::visit(BlockNode& node) {
 
 void LLVMCodeGenVisitor::visit(VariableNode& node) {
     SymbolInfo* info = ctx.currentScope()->lookup(node.name);
-    llvm::Type* varType = llvmType(node, info->type);
-    result = builder.CreateLoad(varType, info->llvmValue, "loadtmp");
+
+    if (info && info->isBuiltin && info->isConstant) {
+        if (FloatNode* fnode = dynamic_cast<FloatNode*>(info->value)) {
+            // Crear constante global para PI
+            llvm::GlobalVariable* gvar = module->getGlobalVariable(node.name);
+            if (!gvar) {
+                gvar = new llvm::GlobalVariable( *module, builder.getFloatTy(), true, 
+                    llvm::GlobalValue::ExternalLinkage,
+                    llvm::ConstantFP::get(context, llvm::APFloat(fnode->value)),
+                    node.name
+                );
+            }
+            result = builder.CreateLoad( builder.getFloatTy(), gvar, "load_" + node.name);
+        }
+    }
+    else {
+        llvm::Type* varType = llvmType(node, info->type);
+        result = builder.CreateLoad(varType, info->llvmValue, "load_" + node.name);
+    }
+
 }
 
 void LLVMCodeGenVisitor::visit(LetInNode& node) {
@@ -247,7 +232,6 @@ void LLVMCodeGenVisitor::visit(LetInNode& node) {
 
     ctx.popScope();
 }
-
 
 void LLVMCodeGenVisitor::visit(FunctionNode& node) {
     // Obtener información de tipos desde contexto
@@ -316,6 +300,18 @@ void LLVMCodeGenVisitor::visit(ProgramNode& node) {
 }
 
 void LLVMCodeGenVisitor::visit(CallFuncNode& node) {
+    
+    // Primero verificar si es built-in
+    if (ctx.isBuiltin(node.functionName)) {
+        std::vector<llvm::Value*> argValues;
+        for (auto arg : node.arguments) {
+            arg->accept(*this);
+            argValues.push_back(result);
+        }
+        result = generateBuiltinCall(node.functionName, argValues);
+        return;
+    }
+    
     FunctionInfo* info = ctx.lookupFunction(node.functionName);
     llvm::Function* func = module->getFunction(node.functionName);
 
@@ -328,6 +324,86 @@ void LLVMCodeGenVisitor::visit(CallFuncNode& node) {
 
     result = builder.CreateCall(func, llvmArgs, "call" + info->node->name + "tmp");
 }
+
+llvm::Value* LLVMCodeGenVisitor::generateBuiltinCall(const std::string& name, const std::vector<llvm::Value*>& args) {
+    
+    // Obtener información del built-in
+    BuiltinInfo* binfo = ctx.lookupBuiltin(name);
+
+    // Manejar funciones matemáticas
+    if (name == "sin" || name == "cos" || name == "sqrt" || name == "log" || name == "exp") {
+        
+        llvm::Intrinsic::ID id;
+        if (name == "sin") id = llvm::Intrinsic::sin;
+        else if (name == "cos") id = llvm::Intrinsic::cos;
+        else if (name == "exp") id = llvm::Intrinsic::exp;
+        else if (name == "log") id = llvm::Intrinsic::log;
+        else if (name == "sqrt") id = llvm::Intrinsic::sqrt;
+        
+        llvm::Function* fn = llvm::Intrinsic::getDeclaration( module.get(), id, {builder.getFloatTy()});
+        return builder.CreateCall(fn, args, name + "tmp");
+    }
+    
+    // Manejar print
+    else if (name == "print") {
+
+        llvm::Function* printFunc = getPrintFunctionForType(args[0]->getType());
+        llvm::Value* ret = builder.CreateCall(printFunc, {builder.CreateFPExt(args[0], builder.getDoubleTy())}, "printtmp");
+        return ret; //args[0];
+    }
+    
+    // Manejar rand
+    else if (name == "rand") {
+        llvm::Function* randFunc = getBuiltinFunction( "rand", builder.getFloatTy(), {});
+        return builder.CreateCall(randFunc, {}, "randtmp");
+    }
+    
+    std::cerr << "Erro: Built-in function ' " << name << " ' no soportada" << std::endl;
+    exit(1);
+}
+
+llvm::Function* LLVMCodeGenVisitor::getPrintFunctionForType(llvm::Type* argType) {
+    std::string funcName;
+    llvm::Type* paramType = argType;
+    llvm::Type* returnType = argType;
+    
+    // Conversión especial para floats
+    if (argType->isFloatTy()) {
+        paramType = builder.getDoubleTy();  // Usar double para la llamada
+        returnType = builder.getFloatTy();  // print devuelve float (mismo tipo original)
+    }
+    
+    if (argType->isFloatTy()) {
+        funcName = "hulk_print_float";
+    } 
+    else if (argType == builder.getInt1Ty()) {
+        funcName = "hulk_print_bool";
+    } 
+    else if (argType->isPointerTy() && 
+             argType->getPointerElementType()->isIntegerTy(8)) {
+        funcName = "hulk_print_string";
+    }
+    else {
+        std::cerr << "Error: tipo no soportado para print" << std::endl;
+        exit(1);
+    }
+    
+    return getBuiltinFunction(funcName, returnType, {paramType});
+}
+
+llvm::Function* LLVMCodeGenVisitor::getBuiltinFunction( const std::string& name, llvm::Type* returnType, const std::vector<llvm::Type*>& argTypes) {
+    
+    // Verificar si ya está declarada
+    llvm::Function* func = module->getFunction(name);
+    if (!func) {
+        llvm::FunctionType* funcType = 
+            llvm::FunctionType::get(returnType, argTypes, false);
+        func = llvm::Function::Create(
+            funcType, llvm::Function::ExternalLinkage, name, module.get());
+    }
+    return func;
+}
+
 
 void LLVMCodeGenVisitor::visit(WhileNode& node) {
     llvm::Function* currentFunc = builder.GetInsertBlock()->getParent();
@@ -382,77 +458,6 @@ void LLVMCodeGenVisitor::visit(WhileNode& node) {
     // Leer resultado final
     result = builder.CreateLoad(llvmTy, resultVar, "while.final");
 }
-
-
-// void LLVMCodeGenVisitor::visit(IfNode& node) {
-//     llvm::Function* func = builder.GetInsertBlock()->getParent();
-//     llvm::Type* llvmTy = llvmType(node, node.returnType);
-
-//     // Crear bloque de merge (salida del if)
-//     llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(context, "if.merge", func);
-//     llvm::PHINode* phi = builder.CreatePHI(llvmTy, node.getBranches().size() + 1, "iftmp");
-
-//     llvm::BasicBlock* nextCondBB = nullptr;
-//     std::vector<std::pair<llvm::Value*, llvm::BasicBlock*>> incoming;
-
-//     // Recorrer if / elif
-//     for (size_t i = 0; i < node.getBranches().size(); ++i) {
-//         auto [condExpr, bodyExpr] = node.getBranches()[i];
-
-//         if (i > 0) {
-//             builder.SetInsertPoint(nextCondBB);
-//         }
-
-//         // Evaluar condición
-//         condExpr->accept(*this);
-//         llvm::Value* condVal = result;
-//         if (!condVal->getType()->isIntegerTy(1)) {
-//             condVal = builder.CreateFCmpONE(
-//                 condVal,
-//                 llvm::ConstantFP::get(context, llvm::APFloat(0.0f)),
-//                 "ifcond"
-//             );
-//         }
-
-//         // Crear bloques
-//         llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(context, "if.then", func);
-//         nextCondBB = llvm::BasicBlock::Create(context, "if.next", func);
-//         builder.CreateCondBr(condVal, thenBB, nextCondBB);
-
-//         // THEN
-//         builder.SetInsertPoint(thenBB);
-//         bodyExpr->accept(*this);
-//         llvm::Value* thenVal = result;
-//         builder.CreateBr(mergeBB);
-
-//         incoming.emplace_back(thenVal, thenBB);
-//     }
-
-//     if (ASTNode* elseBranch = node.getElseBranch()) {
-//     llvm::BasicBlock* elseBB = builder.GetInsertBlock(); // el último nextcond creado
-//     elseBranch->accept(*this);
-//     llvm::Value* elseVal = result;
-//     if (phi && elseVal)
-//         phi->addIncoming(elseVal, elseBB);
-//     builder.CreateBr(mergeBB);
-//     } else {
-//         // ELSE no existe, así que el último nextcond quedó como bloque actual.
-//         llvm::BasicBlock* emptyBB = builder.GetInsertBlock();
-//         builder.CreateBr(mergeBB); // hay que saltar al merge
-//         if (phi)
-//             phi->addIncoming(llvm::UndefValue::get(llvmTy), emptyBB); // valor por defecto
-//     }
-
-//     // MERGE block
-//     func->getBasicBlockList().push_back(mergeBB);
-//     builder.SetInsertPoint(mergeBB);
-
-//     for (const auto& [val, bb] : incoming) {
-//         phi->addIncoming(val, bb);
-//     }
-
-//     result = phi;
-// }
 
 void LLVMCodeGenVisitor::visit(IfNode& node) {
     llvm::Function* func = builder.GetInsertBlock()->getParent();
@@ -532,3 +537,44 @@ void LLVMCodeGenVisitor::visit(IfNode& node) {
     builder.SetInsertPoint(mergeBB);
     result = phi;
 }
+
+void LLVMCodeGenVisitor::visit(TypeMember& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(TypeNode& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(InheritsNode& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(AttributeNode& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(MethodNode& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(NewNode& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(MemberAccessNode& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(SelfNode& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(BaseNode& node){
+
+}
+
+void LLVMCodeGenVisitor::visit(MethodCallNode& node){
+
+}
+    

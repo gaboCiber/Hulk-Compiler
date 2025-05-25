@@ -181,11 +181,16 @@ void TypeInferenceVisitor::visit(CallFuncNode& node){
 
     for (auto args : node.arguments) {
         args->accept(*this);
+        
         if(errorFlag)
             return;
     } 
 
-    lastType = info->returnType;
+    if(info->returnType != Type::Any)
+    {
+        lastType = info->returnType;
+    }
+    
 }
 
 void TypeInferenceVisitor::visit(WhileNode& node) {
@@ -234,3 +239,44 @@ void TypeInferenceVisitor::visit(IfNode& node) {
 
     node.returnType = lastType;
 }
+
+void TypeInferenceVisitor::visit(TypeMember& node){
+
+}
+
+void TypeInferenceVisitor::visit(TypeNode& node){
+
+}
+
+void TypeInferenceVisitor::visit(InheritsNode& node){
+
+}
+
+void TypeInferenceVisitor::visit(AttributeNode& node){
+
+}
+
+void TypeInferenceVisitor::visit(MethodNode& node){
+
+}
+
+void TypeInferenceVisitor::visit(NewNode& node){
+
+}
+
+void TypeInferenceVisitor::visit(MemberAccessNode& node){
+
+}
+
+void TypeInferenceVisitor::visit(SelfNode& node){
+
+}
+
+void TypeInferenceVisitor::visit(BaseNode& node){
+
+}
+
+void TypeInferenceVisitor::visit(MethodCallNode& node){
+
+}
+    

@@ -21,6 +21,17 @@ public:
     void visit(CallFuncNode& node) override;
     void visit(WhileNode& node) override;
     void visit(IfNode& node) override;
+    void visit(TypeMember& node) override;
+    void visit(TypeNode& node) override;
+    void visit(InheritsNode& node) override;
+    void visit(AttributeNode& node) override;
+    void visit(MethodNode& node) override;
+    void visit(NewNode& node) override;
+    void visit(MemberAccessNode& node) override;
+    void visit(SelfNode& node) override;
+    void visit(BaseNode& node) override;
+    void visit(MethodCallNode& node) override;
+    
 
     bool hasError() const { return errorFlag; }
     const std::string& getError() const { return errorMsg; }

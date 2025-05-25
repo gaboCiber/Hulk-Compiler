@@ -6,9 +6,10 @@
 
 struct SymbolInfo {
     Type type = Type::Unknown;
-    //bool isDefined = false;
     ASTNode* value = nullptr;
     llvm::Value* llvmValue = nullptr;
+    bool isBuiltin = false;  // Nueva bandera
+    bool isConstant = false; // Para constantes built-in
 };
 
 class Scope {

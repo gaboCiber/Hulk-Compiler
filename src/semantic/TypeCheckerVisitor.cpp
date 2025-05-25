@@ -178,6 +178,13 @@ void TypeCheckerVisitor::visit(ProgramNode& node) {
 void TypeCheckerVisitor::visit(CallFuncNode& node){
     FunctionInfo* info = ctx.lookupFunction(node.functionName);
 
+    // Primero verificar si es built-in
+    if (ctx.isBuiltin(node.functionName)) {
+        checkBuiltinCall(node);
+        return;
+    }
+
+    // Es una funcion normal
     if ( node.arguments.size() != info->node->args.size() ) {
         errorFlag = true;
         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: la función '" + node.functionName + "' requiere " + std::to_string(info->node->args.size()) + " argumentos. Se le pasaron " + std::to_string(node.arguments.size()) + ".\n";
@@ -198,7 +205,7 @@ void TypeCheckerVisitor::visit(CallFuncNode& node){
 
         if (!expectedInfo) {
             errorFlag = true;
-            errorMsg = "[Internal error] Argumento '" + expectedArg->name + "' no está definido en el scope de la función '" + info->node->name + "'.\n";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el argumento '" + expectedArg->name + "' no está definido en el scope de la función '" + info->node->name + "'.\n";
             return;
         }
 
@@ -210,6 +217,48 @@ void TypeCheckerVisitor::visit(CallFuncNode& node){
     }
 
     lastType = info->returnType;
+}
+
+void TypeCheckerVisitor::checkBuiltinCall(CallFuncNode& node) {
+    BuiltinInfo* binfo = ctx.lookupBuiltin(node.functionName);
+    if (!binfo) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: Built-in function '" + node.functionName + "' no encontrada'.\n";
+        return;
+    }
+    
+    // Verificar número de argumentos
+    if (node.arguments.size() != binfo->argTypes.size()) {
+        errorFlag = true;
+        errorMsg = "Incorrect number of arguments for " + node.functionName;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: la función '" + node.functionName + "' requiere " + std::to_string(binfo->argTypes.size()) + " argumentos. Se le pasaron " + std::to_string(node.arguments.size()) + ".\n";
+
+        return;
+    }
+    
+    // Verificar tipos de argumentos
+
+    if (binfo->returnsArgumentType) {
+        node.arguments[0]->accept(*this);
+        
+        if(errorFlag)
+            return;
+
+    }
+    else {
+        for (size_t i = 0; i < node.arguments.size(); ++i) {
+            node.arguments[i]->accept(*this);
+
+            if (lastType != binfo->argTypes[i]) {
+                errorFlag = true;
+                errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el argumento '" + std::to_string(i + 1) + "' de la funcion '" + node.functionName + "' es de tipo '" + TypeToString(binfo->argTypes[i]) + "' . No de tipo '" + TypeToString(lastType) +  "' .\n";
+                return;
+            }
+        }
+
+        lastType = binfo->returnType;
+    }
+    
 }
 
 void TypeCheckerVisitor::visit(WhileNode& node) {
@@ -277,3 +326,44 @@ void TypeCheckerVisitor::visit(IfNode& node) {
     }
 
 }
+
+void TypeCheckerVisitor::visit(TypeMember& node){
+
+}
+
+void TypeCheckerVisitor::visit(TypeNode& node){
+
+}
+
+void TypeCheckerVisitor::visit(InheritsNode& node){
+
+}
+
+void TypeCheckerVisitor::visit(AttributeNode& node){
+
+}
+
+void TypeCheckerVisitor::visit(MethodNode& node){
+
+}
+
+void TypeCheckerVisitor::visit(NewNode& node){
+
+}
+
+void TypeCheckerVisitor::visit(MemberAccessNode& node){
+
+}
+
+void TypeCheckerVisitor::visit(SelfNode& node){
+
+}
+
+void TypeCheckerVisitor::visit(BaseNode& node){
+
+}
+
+void TypeCheckerVisitor::visit(MethodCallNode& node){
+
+}
+    
