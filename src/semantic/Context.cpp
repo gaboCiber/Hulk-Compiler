@@ -21,7 +21,7 @@ void Context::initializeBuiltins() {
     defineBuiltinFunction("sin", Type::Float, {Type::Float});
     defineBuiltinFunction("cos", Type::Float, {Type::Float});
     defineBuiltinFunction("sqrt", Type::Float, {Type::Float});
-    defineBuiltinFunction("log", Type::Float, {Type::Float});
+    defineBuiltinFunction("log", Type::Float, {Type::Float, Type::Float});
     defineBuiltinFunction("exp", Type::Float, {Type::Float});
     
     // Funciones con efectos secundarios

@@ -331,24 +331,37 @@ llvm::Value* LLVMCodeGenVisitor::generateBuiltinCall(const std::string& name, co
     BuiltinInfo* binfo = ctx.lookupBuiltin(name);
 
     // Manejar funciones matemáticas
-    if (name == "sin" || name == "cos" || name == "sqrt" || name == "log" || name == "exp") {
+    if (name == "sin" || name == "cos" || name == "sqrt" || name == "exp") {
         
         llvm::Intrinsic::ID id;
         if (name == "sin") id = llvm::Intrinsic::sin;
         else if (name == "cos") id = llvm::Intrinsic::cos;
         else if (name == "exp") id = llvm::Intrinsic::exp;
-        else if (name == "log") id = llvm::Intrinsic::log;
         else if (name == "sqrt") id = llvm::Intrinsic::sqrt;
         
         llvm::Function* fn = llvm::Intrinsic::getDeclaration( module.get(), id, {builder.getFloatTy()});
         return builder.CreateCall(fn, args, name + "tmp");
     }
     
+    else if(name == "log")
+    {
+        llvm::Function* logFunc = getBuiltinFunction( "log", builder.getFloatTy(), {builder.getDoubleTy(), builder.getDoubleTy()});
+        return builder.CreateCall(logFunc, 
+                {builder.CreateFPExt(args[0], builder.getDoubleTy()), builder.CreateFPExt(args[1], builder.getDoubleTy())},
+                 "randtmp");
+    }
+
     // Manejar print
     else if (name == "print") {
 
         llvm::Function* printFunc = getPrintFunctionForType(args[0]->getType());
-        llvm::Value* ret = builder.CreateCall(printFunc, {builder.CreateFPExt(args[0], builder.getDoubleTy())}, "printtmp");
+
+        auto trueArgs = {args[0]};
+        if (args[0]->getType()->isFloatTy())
+            trueArgs = {builder.CreateFPExt(args[0], builder.getDoubleTy())};
+
+
+        llvm::Value* ret = builder.CreateCall(printFunc, trueArgs, "printtmp");
         return ret; //args[0];
     }
     

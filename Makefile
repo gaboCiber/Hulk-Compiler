@@ -11,7 +11,7 @@ CXXFLAGS = -Wall -std=c++17 -Isrc -Isrc/ast -Ihulk/parser
 # LLVM
 LLVM_CONFIG = llvm-config
 LLVM_CXXFLAGS = $(shell $(LLVM_CONFIG) --cxxflags)
-LLVM_LDFLAGS  = $(shell $(LLVM_CONFIG) --ldflags --libs core) -Wno-unused-command-line-argument
+LLVM_LDFLAGS  = $(shell $(LLVM_CONFIG) --ldflags --libs core) -Wno-unused-command-line-argument -lm
 
 # Directorios
 SRC_DIR = src
@@ -63,7 +63,7 @@ compile: build
 	@$(EXEC) < $(SCRIPT_FILE)
 	@$(LLC) $(LLVM_IR) -o $(LLVM_S)
 	@$(CC) -c $(RUNTIME_SRC) -o $(RUNTIME_OBJ)     
-	@$(CLANG) -fPIE -no-pie $(LLVM_S) $(RUNTIME_OBJ) -o $(OUT_DIR)/output
+	@$(CLANG) -fPIE -no-pie $(LLVM_S) $(RUNTIME_OBJ) -o $(OUT_DIR)/output $(LLVM_LDFLAGS)
 
 execute: compile
 	@echo "🚀 Ejecutando LLVM IR ..."

@@ -6,6 +6,10 @@
 
 // En runtime.c
 
+double hulk_log(double base, double value) {
+    return log(value) / log(base);
+}
+
 char* hulk_string_concat(const char* s1, const char* s2) {
     size_t len1 = strlen(s1);
     size_t len2 = strlen(s2);
@@ -30,11 +34,11 @@ int hulk_print_bool(int b) {
     return b;  // Devuelve el mismo bool
 }
 
-double hulk_rand() {
+float hulk_rand() {
     static int initialized = 0;
     if (!initialized) {
         srand(time(NULL));
         initialized = 1;
     }
-    return (double)rand() / RAND_MAX;
+    return (float)rand() / RAND_MAX;
 }
