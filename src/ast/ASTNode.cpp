@@ -94,7 +94,7 @@ BlockNode::~BlockNode() {
 }
 
 // VariableNode Implementation
-VariableNode::VariableNode(const std::string& n, int l) : name(n), ASTNode(l) {}
+VariableNode::VariableNode(const std::string& n, int l) : ASTNode(l), name(n) {}
 
 void VariableNode::print(int indent) const {
     std::cout << std::string(indent, ' ') << "Variable(" << name << ")\n";
@@ -132,7 +132,7 @@ LetInNode::~LetInNode() {
 
 // FunctionNode Implementation
 FunctionNode::FunctionNode(const std::string& n, const std::vector<VariableNode*>& a, BlockNode* blk, int l)
-    : name(n), args(a), block(blk), ASTNode(l) {}
+    : ASTNode(l), name(n), args(a), block(blk) {} 
 
 void FunctionNode::print(int indent) const {
     std::cout << std::string(indent, ' ') << "Function " << name << " ( ";
@@ -264,4 +264,222 @@ IfNode::~IfNode() {
         delete branch;
     }
     delete elseBranch;
+}
+
+
+
+
+
+
+
+TypeNode::TypeNode(const std::string& name, 
+                 std::vector<VariableNode*>* args,
+                 InheritsNode* inherits,
+                 const std::vector<TypeMember*>& members,
+                 int line) :
+    ASTNode(line), name(name), type_args(args), 
+    inherits(inherits), members(members) {}
+
+TypeNode::~TypeNode() {
+    for (auto arg : *type_args) delete arg;
+    delete type_args;
+    delete inherits;
+    for (auto member : members) delete member;
+}
+
+void TypeNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "TypeDeclaration: " << name << "\n";
+    std::cout << std::string(indent + 2, ' ') << "Type Parameters:\n";
+    for (const auto& arg : *type_args) {
+        arg->print(indent + 4);
+    }
+    
+    if (inherits) {
+        std::cout << std::string(indent + 2, ' ') << "Inherits:\n";
+        inherits->print(indent + 4);
+    }
+    
+    std::cout << std::string(indent + 2, ' ') << "Members:\n";
+    for (const auto& member : members) {
+        member->print(indent + 4);
+    }
+}
+
+void TypeNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+// =================== InheritsNode ===================
+InheritsNode::InheritsNode(const std::string& parent, 
+                         std::vector<ASTNode*>* args,
+                         int line) :
+    ASTNode(line), parent_type(parent), parent_args(args) {}
+
+InheritsNode::~InheritsNode() {
+    for (auto arg : *parent_args) delete arg;
+    delete parent_args;
+}
+
+void InheritsNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "InheritsFrom: " << parent_type << "\n";
+    if (!parent_args->empty()) {
+        std::cout << std::string(indent + 2, ' ') << "Parent Arguments:\n";
+        for (const auto& arg : *parent_args) {
+            arg->print(indent + 4);
+        }
+    }
+}
+
+void InheritsNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+// ================== AttributeNode ==================
+AttributeNode::AttributeNode(const std::string& name, 
+                           ASTNode* init, 
+                           int line) :
+    TypeMember(TypeMember::Kind::Attribute, line), 
+    name(name), initializer(init) {}
+
+AttributeNode::~AttributeNode() {
+    delete initializer;
+}
+
+void AttributeNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "Attribute: " << name << "\n";
+    std::cout << std::string(indent + 2, ' ') << "Initializer:\n";
+    initializer->print(indent + 4);
+}
+
+void AttributeNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+// =================== MethodNode ====================
+MethodNode::MethodNode(const std::string& name,
+                     std::vector<VariableNode*>* params,
+                     ASTNode* body,
+                     int line) :
+    TypeMember(TypeMember::Kind::Method, line), 
+    name(name), parameters(params), body(body) {}
+
+MethodNode::~MethodNode() {
+    for (auto param : *parameters) delete param;
+    delete parameters;
+    delete body;
+}
+
+void MethodNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "Method: " << name << "\n";
+    std::cout << std::string(indent + 2, ' ') << "Parameters:\n";
+    for (const auto& param : *parameters) {
+        param->print(indent + 4);
+    }
+    std::cout << std::string(indent + 2, ' ') << "Body:\n";
+    body->print(indent + 4);
+}
+
+void MethodNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+// ===================== NewNode =====================
+NewNode::NewNode(const std::string& type, 
+               std::vector<ASTNode*>* args, 
+               int line) :
+    ASTNode(line), type_name(type), arguments(args) {}
+
+NewNode::~NewNode() {
+    for (auto arg : *arguments) delete arg;
+    delete arguments;
+}
+
+void NewNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "NewInstance: " << type_name << "\n";
+    if (!arguments->empty()) {
+        std::cout << std::string(indent + 2, ' ') << "Arguments:\n";
+        for (const auto& arg : *arguments) {
+            arg->print(indent + 4);
+        }
+    }
+}
+
+void NewNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+// ================ MemberAccessNode =================
+MemberAccessNode::MemberAccessNode(ASTNode* obj, 
+                                  const std::string& member, 
+                                  int line) :
+    ASTNode(line), object(obj), member_name(member) {}
+
+MemberAccessNode::~MemberAccessNode() {
+    delete object;
+}
+
+void MemberAccessNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "MemberAccess: ." << member_name << "\n";
+    std::cout << std::string(indent + 2, ' ') << "Object:\n";
+    object->print(indent + 4);
+}
+
+void MemberAccessNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+// ==================== SelfNode =====================
+SelfNode::SelfNode(int line) : ASTNode(line) {}
+
+void SelfNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "SelfReference\n";
+}
+
+void SelfNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+// ==================== BaseNode =====================
+BaseNode::BaseNode(int line) : ASTNode(line) {}
+
+void BaseNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "BaseReference\n";
+}
+
+void BaseNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+
+
+MethodCallNode::MethodCallNode(ASTNode* obj, 
+                             const std::string& name,
+                             const std::vector<ASTNode*>& args,
+                             int line) :
+    ASTNode(line), 
+    object(obj),
+    method_name(name),
+    arguments(args) {}
+
+MethodCallNode::~MethodCallNode() {
+    delete object;
+    for (auto arg : arguments) {
+        delete arg;
+    }
+}
+
+void MethodCallNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "MethodCall: " << method_name << "\n";
+    std::cout << std::string(indent + 2, ' ') << "Object:\n";
+    object->print(indent + 4);
+    if (!arguments.empty()) {
+        std::cout << std::string(indent + 2, ' ') << "Arguments:\n";
+        for (auto arg : arguments) {
+            arg->print(indent + 4);
+        }
+    }
+}
+
+void MethodCallNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
 }

@@ -32,6 +32,11 @@ ProgramNode* root = new ProgramNode();
     std::vector<ASTNode*>* expr_list;
     std::pair<ASTNode*, ASTNode*>* cond_pair;
     std::vector<std::pair<ASTNode*, ASTNode*>>* cond_list;
+    std::vector<VariableNode*>* type_args;
+    TypeNode* type_node;
+    InheritsNode* inherits_node; 
+    std::vector<TypeMember*>* type_members; 
+    TypeMember* type_member;    
 }
 
 %token <fval> FLOAT
@@ -41,6 +46,8 @@ ProgramNode* root = new ProgramNode();
 %token GREATER LESS GREATER_THAN LESS_THAN 
 %token AND OR NOT
 %token LPAREN RPAREN SEMICOLON LKEY RKEY LET IN ASSIGNM COMA LAMBDA FUNCTION WHILE IF ELSE ELIF
+%token TYPE NEW INHERITS SELF BASE DOT
+%token DESTRUCTIVE_ASSIGNM
 
 %type <node> program expr toplevel_item
 %type <block> block_lines statements
@@ -50,13 +57,17 @@ ProgramNode* root = new ProgramNode();
 %type <expr_list> args expr_list
 %type <cond_pair> elif_clause
 %type <cond_list> elif_sequence
+%type <type_node> type_decl
+%type <inherits_node> inherits_clause
+%type <type_members> type_body
+%type <type_member> attribute method
 
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
 %nonassoc ELIF
 %nonassoc ASSIGNM DESTRUCTIVE_ASSIGNM LAMBDA
 %right NOT
-%left AND OR
+%left AND OR 
 %nonassoc EQUAL NOEQUAL
 %nonassoc GREATER LESS GREATER_THAN LESS_THAN 
 %left CONCAT
@@ -64,6 +75,7 @@ ProgramNode* root = new ProgramNode();
 %left TIMES DIV
 %right POW
 %right UMINUS
+%left DOT 
 
 %%
 
@@ -76,6 +88,7 @@ toplevel_item:
     expr SEMICOLON        { root->push_statement($1); }
   | block_lines SEMICOLON { root->push_statement($1); }
   | function SEMICOLON    { root->push_func($1); }
+  | type_decl SEMICOLON   { root->push_statement($1); }
   ;
 
 block_lines:
@@ -162,6 +175,52 @@ elif_sequence:
     }
   ;
 
+type_decl:
+    TYPE ID LPAREN arguments RPAREN inherits_clause LKEY type_body RKEY {
+        $$ = new TypeNode($2, $4, $6, *$8, yylineno);
+        delete $8;
+    }
+    | TYPE ID inherits_clause LKEY type_body RKEY {
+        $$ = new TypeNode($2, new std::vector<VariableNode*>(), $3, *$5, yylineno);
+        delete $5;
+    }
+    | TYPE ID LPAREN arguments RPAREN LKEY type_body RKEY {
+        $$ = new TypeNode($2, $4, nullptr, *$7, yylineno);
+        delete $7;
+    }
+    | TYPE ID LKEY type_body RKEY {
+        $$ = new TypeNode($2, new std::vector<VariableNode*>(), nullptr, *$4, yylineno);
+        delete $4;
+    }
+    ;
+
+inherits_clause:
+    /* vacío */ { $$ = nullptr; }
+    | INHERITS ID LPAREN args RPAREN {
+        $$ = new InheritsNode($2, $4, yylineno);
+    }
+    | INHERITS ID {
+        $$ = new InheritsNode($2, new std::vector<ASTNode*>(), yylineno);
+    };
+
+type_body:
+    /* vacío */ { $$ = new std::vector<TypeMember*>(); }
+    | type_body attribute SEMICOLON { $1->push_back($2); $$ = $1; }
+    | type_body method SEMICOLON { $1->push_back($2); $$ = $1; };
+
+attribute:
+    ID ASSIGNM expr { $$ = new AttributeNode($1, $3, yylineno); };
+
+method:
+    ID LPAREN arguments RPAREN LAMBDA expr {
+        $$ = new MethodNode($1, $3, $6, yylineno);
+    }
+    | ID LPAREN arguments RPAREN LAMBDA block_lines {
+        $$ = new MethodNode($1, $3, $6, yylineno);
+    }
+    ;
+
+
 expr:
     FLOAT                           { $$ = new FloatNode($1, yylineno); }
   | BOOL                            { $$ = new BoolNode($1, yylineno); }
@@ -188,6 +247,9 @@ expr:
   | ID DESTRUCTIVE_ASSIGNM expr     { 
         ASTNode* lhs = new VariableNode($1, yylineno); 
         $$ = new BinOpNode(":=", lhs, $3, yylineno); 
+    }
+  | expr DOT ID DESTRUCTIVE_ASSIGNM expr {
+        $$ = new BinOpNode(":=", new MemberAccessNode($1, $3, yylineno), $5, yylineno);
     }
   | LET assingments IN expr         { 
         BlockNode* block = new BlockNode(); 
@@ -256,6 +318,18 @@ expr:
         }
         delete $6;
         $$ = ifNode;
+    }
+  | NEW ID LPAREN args RPAREN {
+        $$ = new NewNode($2, $4, yylineno);
+    }
+  | expr DOT ID {
+        $$ = new MemberAccessNode($1, $3, yylineno);
+    }
+  | SELF { $$ = new SelfNode(yylineno); }
+  | BASE { $$ = new BaseNode(yylineno); };
+  | expr DOT ID LPAREN args RPAREN {  
+        $$ = new MethodCallNode($1, $3, *$5, yylineno);
+        delete $5;
     }
   ;
 

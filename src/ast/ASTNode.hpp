@@ -1,4 +1,5 @@
 #pragma once
+#include "Visitor.hpp"
 #include <string>
 #include <memory>
 #include <iostream>
@@ -162,3 +163,143 @@ public:
     const auto& getBranches() const { return branches; }
     ASTNode* getElseBranch() const { return elseBranch; }
 };
+
+
+
+
+class TypeNode : public ASTNode {
+public:
+    std::string name;
+    std::vector<VariableNode*>* type_args;
+    InheritsNode* inherits;
+    std::vector<TypeMember*> members;
+
+    TypeNode(const std::string& name, 
+            std::vector<VariableNode*>* args,
+            InheritsNode* inherits,
+            const std::vector<TypeMember*>& members,
+            int line);
+    ~TypeNode();  // Solo declaración
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;  // Solo declaración
+};
+
+class InheritsNode : public ASTNode {
+public:
+    std::string parent_type;
+    std::vector<ASTNode*>* parent_args;
+
+    InheritsNode(const std::string& parent, 
+                std::vector<ASTNode*>* args,
+                int line);
+    ~InheritsNode();  // Solo declaración
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;  // Solo declaración
+};
+
+class TypeMember : public ASTNode {
+public:
+    enum class Kind { Attribute, Method };
+    
+    TypeMember(Kind kind, int line) : ASTNode(line), kind(kind) {}
+    virtual ~TypeMember() = default;
+    
+    Kind getKind() const { return kind; }
+    virtual std::string getName() const = 0;
+    virtual void print(int indent = 0) const override = 0;
+    virtual void accept(Visitor& visitor) override = 0;
+
+private:
+    Kind kind;
+};
+
+class AttributeNode : public TypeMember {
+public:
+    AttributeNode(const std::string& name, ASTNode* init, int line);
+    ~AttributeNode();
+    
+    std::string getName() const override { return name; }
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;
+
+private:
+    std::string name;
+    ASTNode* initializer;
+};
+
+class MethodNode : public TypeMember {
+public:
+    MethodNode(const std::string& name,
+              std::vector<VariableNode*>* params,
+              ASTNode* body,
+              int line);
+    ~MethodNode();
+    
+    std::string getName() const override { return name; }
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;
+
+private:
+    std::string name;
+    std::vector<VariableNode*>* parameters;
+    ASTNode* body;
+};
+
+class NewNode : public ASTNode {
+public:
+    std::string type_name;
+    std::vector<ASTNode*>* arguments;
+
+    NewNode(const std::string& type, std::vector<ASTNode*>* args, int line);
+    ~NewNode();  // Solo declaración
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;  // Solo declaración
+};
+
+class MemberAccessNode : public ASTNode {
+public:
+    ASTNode* object;
+    std::string member_name;
+
+    MemberAccessNode(ASTNode* obj, const std::string& member, int line);
+    ~MemberAccessNode();  // Solo declaración
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;  // Solo declaración
+};
+
+class SelfNode : public ASTNode {
+public:
+    SelfNode(int line);
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;  // Solo declaración
+};
+
+class BaseNode : public ASTNode {
+public:
+    BaseNode(int line);
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;  // Solo declaración
+};
+
+
+class MethodCallNode : public ASTNode {
+public:
+    MethodCallNode(ASTNode* obj, 
+                  const std::string& name, 
+                  const std::vector<ASTNode*>& args, 
+                  int line);
+    ~MethodCallNode();
+    
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;
+    
+    ASTNode* getObject() const { return object; }
+    const std::string& getMethodName() const { return method_name; }
+    const std::vector<ASTNode*>& getArguments() const { return arguments; }
+
+private:
+    ASTNode* object;
+    std::string method_name;
+    std::vector<ASTNode*> arguments;
+};
+
