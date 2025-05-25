@@ -29,6 +29,13 @@ llvm::Type* LLVMCodeGenVisitor::llvmType(ASTNode& node, Type t) {
     return nullptr;
 }
 
+llvm::Value* LLVMCodeGenVisitor::getTypeCode(llvm::Type* type) {
+    if (type->isFloatTy()) return builder.getInt32(HULK_FLOAT);
+    if (type == builder.getInt1Ty()) return builder.getInt32(HULK_BOOL);
+    if (type->isPointerTy()) return builder.getInt32(HULK_STRING);
+    return builder.getInt32(-1); // Tipo desconocido
+}
+
 llvm::Module* LLVMCodeGenVisitor::getModule() const {
     return module.get();
 }
@@ -88,7 +95,6 @@ void LLVMCodeGenVisitor::visit(UnaryOpNode& node) {
     }
 }
 
-
 void LLVMCodeGenVisitor::visit(BinOpNode& node) {
     
     llvm::Value* lhs; 
@@ -113,6 +119,14 @@ void LLVMCodeGenVisitor::visit(BinOpNode& node) {
         // Potencia: no hay instrucción directa en LLVM IR
         llvm::Function* powf = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::pow, { builder.getFloatTy() });
         result = builder.CreateCall(powf, { lhs, rhs }, "powtmp");
+    }
+    else if(node.op == "%")
+    {
+        // a % b = a - b * trunc(a / b)
+        llvm::Value* div = builder.CreateFDiv(lhs, rhs, "divmodtemp");
+        llvm::Value* trunc = builder.CreateUnaryIntrinsic(llvm::Intrinsic::trunc, div);
+        llvm::Value* mul = builder.CreateFMul(rhs, trunc, "mulmodtemp");
+        result = builder.CreateFSub(lhs, mul, "modtmp");
     }
     else if (node.op == ">") {
         result = builder.CreateFCmpOGT(lhs, rhs, "cmptmp");
@@ -143,24 +157,49 @@ void LLVMCodeGenVisitor::visit(BinOpNode& node) {
         else
             result = builder.CreateOr(lhs, rhs, "ortmp");
     }
-    else if (node.op == "@") { 
+    else if (node.op == "@") {
+        llvm::Value* lhsType = getTypeCode(lhs->getType());
+        llvm::Value* rhsType = getTypeCode(rhs->getType());
+        
         llvm::Function* concatFunc = getBuiltinFunction(
             "hulk_string_concat",
             builder.getInt8PtrTy(),
-            {builder.getInt8PtrTy(), builder.getInt8PtrTy()}
+            {builder.getInt8PtrTy(), builder.getInt32Ty(), builder.getInt8PtrTy(), builder.getInt32Ty()}
         );
         
-        result = builder.CreateCall(concatFunc, {lhs, rhs}, "concat");
+        // Manejar LHS
+        llvm::Value* lhsPtr;
+        if (lhs->getType()->isPointerTy()) {
+            lhsPtr = lhs;  // Ya es un puntero (string)
+        } else {
+            // Crear un alloca temporal para el valor no-string
+            llvm::AllocaInst* alloca = builder.CreateAlloca(lhs->getType(), nullptr, "temp.lhs");
+            builder.CreateStore(lhs, alloca);
+            lhsPtr = builder.CreateBitCast(alloca, builder.getInt8PtrTy());
+        }
+        
+        // Manejar RHS
+        llvm::Value* rhsPtr;
+        if (rhs->getType()->isPointerTy()) {
+            rhsPtr = rhs;  // Ya es un puntero (string)
+        } else {
+            // Crear un alloca temporal para el valor no-string
+            llvm::AllocaInst* alloca = builder.CreateAlloca(rhs->getType(), nullptr, "temp.rhs");
+            builder.CreateStore(rhs, alloca);
+            rhsPtr = builder.CreateBitCast(alloca, builder.getInt8PtrTy());
+        }
+        
+        result = builder.CreateCall(concatFunc, {lhsPtr, lhsType, rhsPtr, rhsType}, "concat");
     }
-    if (node.op == ":=") {
+    else if (node.op == ":=") {
 
         if (VariableNode* var = dynamic_cast<VariableNode*>(node.left)) {
             SymbolInfo* info = ctx.currentScope()->lookup(var->name);
             builder.CreateStore(rhs, info->llvmValue);
             result = rhs;
         } 
-    return;
     }
+
 
 
 }
@@ -345,10 +384,17 @@ llvm::Value* LLVMCodeGenVisitor::generateBuiltinCall(const std::string& name, co
     
     else if(name == "log")
     {
-        llvm::Function* logFunc = getBuiltinFunction( "log", builder.getFloatTy(), {builder.getDoubleTy(), builder.getDoubleTy()});
-        return builder.CreateCall(logFunc, 
-                {builder.CreateFPExt(args[0], builder.getDoubleTy()), builder.CreateFPExt(args[1], builder.getDoubleTy())},
-                 "randtmp");
+        llvm::Function* logFunc = getBuiltinFunction(
+            "hulk_log_base",
+            builder.getDoubleTy(),
+            {builder.getDoubleTy(), builder.getDoubleTy()}
+        );
+
+        auto a1 = builder.CreateFPExt(args[0], builder.getDoubleTy());
+        auto a2 = builder.CreateFPExt(args[1], builder.getDoubleTy());
+        llvm::Value* result = builder.CreateCall(logFunc, {a1, a2}, "logtmp");
+        return builder.CreateFPTrunc(result, builder.getFloatTy());
+
     }
 
     // Manejar print
@@ -416,7 +462,6 @@ llvm::Function* LLVMCodeGenVisitor::getBuiltinFunction( const std::string& name,
     }
     return func;
 }
-
 
 void LLVMCodeGenVisitor::visit(WhileNode& node) {
     llvm::Function* currentFunc = builder.GetInsertBlock()->getParent();

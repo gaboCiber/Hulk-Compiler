@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 extern int yylineno;
+void process_escape_chars(char* s);
 %}
 
 %option yylineno
@@ -16,7 +17,7 @@ extern int yylineno;
 [_]+[a-zA-Z0-9_]+     { fprintf(stderr, "[Line %d] Lexer error: identificador inválido '%s'\n", yylineno, yytext); exit(1); }
 [0-9]+[a-zA-Z_]+      { fprintf(stderr, "[Line %d] Lexer error: número mal formado '%s'\n", yylineno, yytext); exit(1); }
 
-\"([^\"\\]|\\.)*\"     { yylval.sval = strdup(yytext + 1); yylval.sval[strlen(yylval.sval) - 1] = '\0'; return STRING; }
+\"([^\"\\]|\\.)*\"    { yylval.sval = strdup(yytext + 1); yylval.sval[strlen(yylval.sval) - 1] = '\0'; process_escape_chars(yylval.sval); return STRING; }
 "let"                 return LET;
 "in"                  return IN;
 "function"            return FUNCTION;
@@ -41,6 +42,7 @@ extern int yylineno;
 "-"                   return MINUS;
 "*"                   return TIMES;
 "/"                   return DIV;
+"%"                   return MOD;
 "("                   return LPAREN;
 ")"                   return RPAREN;
 "{"                   return LKEY;
@@ -65,5 +67,26 @@ extern int yylineno;
 .                     { fprintf(stderr, "[Line %d] Lexer error: símbolo no reconocido '%s'\n", yylineno, yytext); exit(1); }
 
 %%
+
+void process_escape_chars(char* s) {
+    char *p = s, *q = s;
+    while (*p) {
+        if (*p == '\\') {
+            p++;
+            switch (*p) {
+                case 'n': *q++ = '\n'; break;
+                case 't': *q++ = '\t'; break;
+                case 'r': *q++ = '\r'; break;
+                case '\\': *q++ = '\\'; break;
+                case '\"': *q++ = '\"'; break;
+                default: *q++ = *p; break; // Mantener si no es un escape conocido
+            }
+            p++;
+        } else {
+            *q++ = *p++;
+        }
+    }
+    *q = '\0';
+}
 
 int yywrap() { return 1; }

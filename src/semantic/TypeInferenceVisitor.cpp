@@ -65,7 +65,7 @@ void TypeInferenceVisitor::visit(BinOpNode& node) {
 
     Type typeL, typeR, typeNode;
     
-    if (node.op == "+" || node.op == "-" || node.op == "*" || node.op == "/" || node.op == "^") {
+    if (node.op == "+" || node.op == "-" || node.op == "*" || node.op == "/" || node.op == "^" || node.op == "%") {
         typeL = typeR = typeNode = Type::Float;
     }
     else if (node.op == ">" || node.op == "<" || node.op == ">=" || node.op == "<=") {
@@ -85,7 +85,9 @@ void TypeInferenceVisitor::visit(BinOpNode& node) {
         typeL = typeR = typeNode = Type::Bool;
     }
     else if (node.op == "@") {
-        typeL = typeR = typeNode = Type::String;
+        typeL = leftT;
+        typeR = rightT;
+        typeNode = Type::String;
     }
     else {
         errorFlag = true;

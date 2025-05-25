@@ -12,6 +12,13 @@
 #include <string>
 #include <memory>  // para std::unique_ptr
 
+// Definir constantes para los tipos
+enum HulkType {
+    HULK_FLOAT = 0,
+    HULK_BOOL = 1,
+    HULK_STRING = 2
+};
+
 class LLVMCodeGenVisitor : public Visitor {
 public:
     llvm::LLVMContext context;
@@ -52,9 +59,9 @@ public:
     llvm::Module* getModule() const;
 
 private:
-    // Helper para built-ins
     llvm::Value* generateBuiltinCall(const std::string& name, const std::vector<llvm::Value*>& args);
     llvm::Function* getPrintFunctionForType(llvm::Type *type);
     llvm::Function* getBuiltinFunction(const std::string& name, llvm::Type* returnType, const std::vector<llvm::Type*>& argTypes);
+    llvm::Value* getTypeCode(llvm::Type* type);
 
 };

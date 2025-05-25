@@ -42,7 +42,7 @@ ProgramNode* root = new ProgramNode();
 %token <fval> FLOAT
 %token <bval> BOOL
 %token <sval> STRING ID
-%token PLUS MINUS TIMES DIV POW UMINUS CONCAT
+%token PLUS MINUS TIMES DIV POW UMINUS CONCAT MOD
 %token GREATER LESS GREATER_THAN LESS_THAN 
 %token AND OR NOT
 %token LPAREN RPAREN SEMICOLON LKEY RKEY LET IN ASSIGNM COMA LAMBDA FUNCTION WHILE IF ELSE ELIF
@@ -72,7 +72,7 @@ ProgramNode* root = new ProgramNode();
 %nonassoc GREATER LESS GREATER_THAN LESS_THAN 
 %left CONCAT
 %left PLUS MINUS
-%left TIMES DIV
+%left TIMES DIV MOD
 %right POW
 %right UMINUS
 %left DOT 
@@ -234,6 +234,7 @@ expr:
   | expr TIMES expr                 { $$ = new BinOpNode("*", $1, $3, yylineno); }
   | expr DIV expr                   { $$ = new BinOpNode("/", $1, $3, yylineno); }
   | expr POW expr                   { $$ = new BinOpNode("^", $1, $3, yylineno); }
+  | expr MOD expr                   { $$ = new BinOpNode("%", $1, $3, yylineno); }
   | expr GREATER expr               { $$ = new BinOpNode(">", $1, $3, yylineno); }
   | expr LESS expr                  { $$ = new BinOpNode("<", $1, $3, yylineno); }
   | expr GREATER_THAN expr          { $$ = new BinOpNode(">=", $1, $3, yylineno); }

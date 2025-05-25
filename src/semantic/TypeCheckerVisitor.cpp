@@ -59,7 +59,7 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
 
     // Ahora, según el operador:
     if (node.op == "+" || node.op == "-" || node.op == "*" ||
-        node.op == "/" || node.op == "^") {
+        node.op == "/" || node.op == "^" || node.op == "%") {
         // Aritméticos: ambos deben ser float
         if (leftT != Type::Float || rightT != Type::Float) {
             errorFlag = true;
@@ -105,9 +105,9 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
     }
     else if (node.op == "@") {
         // Concatenación: solo string
-        if (leftT != Type::String || rightT != Type::String) {
+        if (leftT == Type::Unknown || rightT == Type::Unknown) {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos de tipo string.";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: los operadorandos '" + node.op + "' no pudieron ser inferidos.";
             return;
         }
         lastType = Type::String;
