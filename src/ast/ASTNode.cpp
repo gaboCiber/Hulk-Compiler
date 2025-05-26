@@ -440,10 +440,16 @@ void SelfNode::accept(Visitor& visitor) {
 }
 
 // ==================== BaseNode =====================
-BaseNode::BaseNode(int line) : ASTNode(line) {}
+BaseNode::BaseNode(std::vector<ASTNode*>* arg, int line) : ASTNode(line), arguments(arg) {}
 
 void BaseNode::print(int indent) const {
     std::cout << std::string(indent, ' ') << "BaseReference\n";
+    if (!arguments->empty()) {
+        std::cout << std::string(indent + 2, ' ') << "Arguments:\n";
+        for (const auto& arg : *arguments) {
+            arg->print(indent + 4);
+        }
+    }
 }
 
 void BaseNode::accept(Visitor& visitor) {

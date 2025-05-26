@@ -276,7 +276,9 @@ public:
 
 class BaseNode : public ASTNode {
 public:
-    BaseNode(int line);
+    std::vector<ASTNode*>* arguments;
+
+    BaseNode(std::vector<ASTNode*>* arg, int line);
     void print(int indent = 0) const override;
     void accept(Visitor& visitor) override;  // Solo declaración
 };

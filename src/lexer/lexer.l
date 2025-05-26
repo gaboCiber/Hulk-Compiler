@@ -61,6 +61,7 @@ void process_escape_chars(char* s);
 "&"                   return AND;
 "|"                   return OR;
 "!"                   return NOT;
+"@@"                  return BCONCAT;
 "@"                   return CONCAT;
 "."                   return DOT;
 

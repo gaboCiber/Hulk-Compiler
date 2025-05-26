@@ -42,7 +42,7 @@ ProgramNode* root = new ProgramNode();
 %token <fval> FLOAT
 %token <bval> BOOL
 %token <sval> STRING ID
-%token PLUS MINUS TIMES DIV POW UMINUS CONCAT MOD
+%token PLUS MINUS TIMES DIV POW UMINUS CONCAT BCONCAT MOD
 %token GREATER LESS GREATER_THAN LESS_THAN 
 %token AND OR NOT
 %token LPAREN RPAREN SEMICOLON LKEY RKEY LET IN ASSIGNM COMA LAMBDA FUNCTION WHILE IF ELSE ELIF
@@ -70,7 +70,7 @@ ProgramNode* root = new ProgramNode();
 %left AND OR 
 %nonassoc EQUAL NOEQUAL
 %nonassoc GREATER LESS GREATER_THAN LESS_THAN 
-%left CONCAT
+%left CONCAT BCONCAT
 %left PLUS MINUS
 %left TIMES DIV MOD
 %right POW
@@ -215,8 +215,8 @@ method:
     ID LPAREN arguments RPAREN LAMBDA expr {
         $$ = new MethodNode($1, $3, $6, yylineno);
     }
-    | ID LPAREN arguments RPAREN LAMBDA block_lines {
-        $$ = new MethodNode($1, $3, $6, yylineno);
+    | ID LPAREN arguments RPAREN block_lines {
+        $$ = new MethodNode($1, $3, $5, yylineno);
     }
     ;
 
@@ -244,6 +244,8 @@ expr:
   | expr AND expr                   { $$ = new BinOpNode("&", $1, $3, yylineno); }
   | expr OR expr                    { $$ = new BinOpNode("|", $1, $3, yylineno); }
   | expr CONCAT expr                { $$ = new BinOpNode("@", $1, $3, yylineno); }
+  | expr BCONCAT expr               { $$ = new BinOpNode("@", new BinOpNode("@", $1 ,new StringNode(" ", yylineno), yylineno), $3, yylineno); }
+
   | LPAREN expr RPAREN              { $$ = $2; }
   | ID DESTRUCTIVE_ASSIGNM expr     { 
         ASTNode* lhs = new VariableNode($1, yylineno); 
@@ -326,8 +328,12 @@ expr:
   | expr DOT ID {
         $$ = new MemberAccessNode($1, $3, yylineno);
     }
-  | SELF { $$ = new SelfNode(yylineno); }
-  | BASE { $$ = new BaseNode(yylineno); };
+  | SELF { 
+        $$ = new SelfNode(yylineno); 
+    }
+  | BASE LPAREN args RPAREN { 
+        $$ = new BaseNode($3, yylineno); 
+    };
   | expr DOT ID LPAREN args RPAREN {  
         $$ = new MethodCallNode($1, $3, *$5, yylineno);
         delete $5;
