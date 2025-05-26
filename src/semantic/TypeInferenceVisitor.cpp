@@ -15,7 +15,10 @@ void TypeInferenceVisitor::putTypeOnVariables(ASTNode* node, Type type){
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(var->line) + "] Error semántico: variable '" + var->name + "' ya definida como '" + TypeToString(info->type) + "' y se intenta asignar tipo '" + TypeToString(type) + "'.\n";
         }
+
     }
+
+    
 }
 
 void TypeInferenceVisitor::visit(FloatNode& node) {
@@ -158,8 +161,13 @@ void TypeInferenceVisitor::visit(FunctionNode& node) {
         return;
     }
     
+
     FunctionInfo* info = ctx.lookupFunction(node.name);
-    info->returnType = lastType;
+    
+    if(info->returnType != Type::Unknown && info->returnType != Type::Any)
+        lastType = info->returnType;
+    else
+        info->returnType = lastType;
 
     ctx.popScope();
 }
@@ -181,11 +189,20 @@ void TypeInferenceVisitor::visit(ProgramNode& node) {
 void TypeInferenceVisitor::visit(CallFuncNode& node){
     FunctionInfo* info = ctx.lookupFunction(node.functionName);
 
+    size_t i = 0;
     for (auto args : node.arguments) {
         args->accept(*this);
         
         if(errorFlag)
             return;
+
+        if (info->isBuiltin)
+        {
+            if(info->builtinInfo->argTypes[i] != Type::Any)
+                putTypeOnVariables(args, info->builtinInfo->argTypes[i]);
+        }
+
+        i++;
     } 
 
     if(info->returnType != Type::Any)
