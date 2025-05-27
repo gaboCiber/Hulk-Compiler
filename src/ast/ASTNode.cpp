@@ -205,7 +205,7 @@ CallFuncNode::~CallFuncNode() {
 }
 
 WhileNode::WhileNode(ASTNode* cond, BlockNode* body, int line)
-    : ASTNode(line), condition(cond), body(body), returnType(Type::Unknown) {}
+    : ASTNode(line), condition(cond), body(body) {}
 
 void WhileNode::print(int indent) const {
     std::cout << std::string(indent, ' ') << "While:\n";
@@ -227,7 +227,7 @@ WhileNode::~WhileNode() {
 
 
 IfNode::IfNode(ASTNode* cond, ASTNode* then, ASTNode* elseBr, int line)
-    : ASTNode(line), elseBranch(elseBr), returnType(Type::Unknown) {
+    : ASTNode(line), elseBranch(elseBr) {
     branches.emplace_back(cond, then);
 }
 

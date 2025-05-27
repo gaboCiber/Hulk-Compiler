@@ -5,7 +5,7 @@
 #include <llvm/IR/Instructions.h>
 
 struct SymbolInfo {
-    Type type = Type::Unknown;
+    Type* type = nullptr;
     ASTNode* value = nullptr;
     llvm::Value* llvmValue = nullptr;
     bool isBuiltin = false;  // Nueva bandera

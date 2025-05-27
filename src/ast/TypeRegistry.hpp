@@ -1,0 +1,26 @@
+#pragma once
+#include "Type.hpp"
+#include <stdexcept>
+
+class TypeRegistry {
+    std::unordered_map<std::string, std::shared_ptr<Type>> types_;
+
+public:
+    TypeRegistry();
+
+    // Registra un tipo definido por el usuario
+    std::string register_user_type(const std::string& name, const std::string& parent_name = "Object");
+
+    // Registra un atributo en un tipo
+    void register_attribute(const std::string& type_name, const std::string& attr_name, Type* attr_type);
+
+    // Registra un método en un tipo
+    void register_method(const std::string& type_name, const std::string& method_name, FunctionType* method_type);
+
+    // Obtiene un tipo por nombre
+    Type* get_type(const std::string& name) const;
+    
+private:
+    bool is_sealed(const std::string& type_name) const ;
+
+};

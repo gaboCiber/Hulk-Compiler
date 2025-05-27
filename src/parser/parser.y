@@ -88,7 +88,7 @@ toplevel_item:
     expr SEMICOLON        { root->push_statement($1); }
   | block_lines SEMICOLON { root->push_statement($1); }
   | function SEMICOLON    { root->push_func($1); }
-  | type_decl SEMICOLON   { root->push_statement($1); }
+  | type_decl SEMICOLON   { root->push_types($1); }
   ;
 
 block_lines:

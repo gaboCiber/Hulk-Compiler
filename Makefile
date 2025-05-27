@@ -66,7 +66,7 @@ compile: build
 	@$(CLANG) -fPIE -no-pie $(LLVM_S) $(RUNTIME_OBJ) -o $(OUT_DIR)/output $(LLVM_LDFLAGS)
 
 execute: compile
-	@echo "🚀 Ejecutando LLVM IR ..."
+	@echo "🚀 Ejecutando output  ..."
 	@./$(OUT_DIR)/output
 
 clean:

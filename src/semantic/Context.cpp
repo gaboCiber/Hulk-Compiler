@@ -3,6 +3,12 @@
 Context::Context() {
     globalScope = new Scope(nullptr); // raíz
     scopeStack.push_back(globalScope);
+
+    number_type = type_registry.get_type("Number");
+    string_type = type_registry.get_type("String");
+    boolean_type = type_registry.get_type("Boolean");
+    object_type = type_registry.get_type("Object");
+
     initializeBuiltins();
 }
 
@@ -14,23 +20,23 @@ Context::~Context() {
 
 void Context::initializeBuiltins() {
     // Constantes matemáticas
-    defineBuiltinConstant("PI", Type::Float, new FloatNode(3.141592653589793, -1));
-    defineBuiltinConstant("E", Type::Float, new FloatNode(2.718281828459045, -1));
+    defineBuiltinConstant("PI", number_type, new FloatNode(3.141592653589793, -1));
+    defineBuiltinConstant("E", number_type, new FloatNode(2.718281828459045, -1));
 
     // Funciones matemáticas (todas toman y retornan Float)
-    defineBuiltinFunction("sin", Type::Float, {Type::Float});
-    defineBuiltinFunction("cos", Type::Float, {Type::Float});
-    defineBuiltinFunction("sqrt", Type::Float, {Type::Float});
-    defineBuiltinFunction("log", Type::Float, {Type::Float, Type::Float});
-    defineBuiltinFunction("exp", Type::Float, {Type::Float});
+    defineBuiltinFunction("sin", number_type, {number_type});
+    defineBuiltinFunction("cos", number_type, {number_type});
+    defineBuiltinFunction("sqrt", number_type, {number_type});
+    defineBuiltinFunction("log", number_type, {number_type, number_type});
+    defineBuiltinFunction("exp", number_type, {number_type});
     
     // Funciones con efectos secundarios
-    defineBuiltinFunction("print", Type::Any, {Type::Any}, true);
-    defineBuiltinFunction("rand", Type::Float, {});
+    defineBuiltinFunction("print", object_type, {object_type}, true);
+    defineBuiltinFunction("rand", number_type, {});
     
 }
 
-bool Context::defineBuiltinFunction(const std::string& name, Type returnType, const std::vector<Type>& argTypes, bool returnsArgumentType) {
+bool Context::defineBuiltinFunction(const std::string& name, Type* returnType, const std::vector<Type*>& argTypes, bool returnsArgumentType) {
     if (builtinTable.count(name)) 
         return false;
     
@@ -56,7 +62,7 @@ bool Context::defineBuiltinFunction(const std::string& name, Type returnType, co
     return true;
 }
 
-bool Context::defineBuiltinConstant(const std::string& name, Type type, ASTNode* value) {
+bool Context::defineBuiltinConstant(const std::string& name, Type* type, ASTNode* value) {
     if (builtinTable.count(name)) return false;
     
     builtinTable[name] = {
@@ -103,7 +109,7 @@ bool Context::defineFunction(const std::string& name, FunctionNode* node) {
     if (functionTable.count(name)) {
         return false;  // ya definida
     }
-    functionTable[name] = { node, Type::Unknown };
+    functionTable[name] = { node, nullptr};
     return true;
 }
 
