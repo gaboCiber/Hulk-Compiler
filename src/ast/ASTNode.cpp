@@ -94,10 +94,10 @@ BlockNode::~BlockNode() {
 }
 
 // VariableNode Implementation
-VariableNode::VariableNode(const std::string& n, int l) : ASTNode(l), name(n) {}
+VariableNode::VariableNode(const std::string& n, int l, const std::string dt) : ASTNode(l), name(n), declared_type(dt) {}
 
 void VariableNode::print(int indent) const {
-    std::cout << std::string(indent, ' ') << "Variable(" << name << ")\n";
+    std::cout << std::string(indent, ' ') << "Variable(" << name << ") " << declared_type << "\n";    
 }
 
 void VariableNode::accept(Visitor& visitor) {
@@ -131,15 +131,15 @@ LetInNode::~LetInNode() {
 }
 
 // FunctionNode Implementation
-FunctionNode::FunctionNode(const std::string& n, const std::vector<VariableNode*>& a, BlockNode* blk, int l)
-    : ASTNode(l), name(n), args(a), block(blk) {} 
+FunctionNode::FunctionNode(const std::string& n, const std::vector<VariableNode*>& a, BlockNode* blk, int l, const std::string dt)
+    : ASTNode(l), name(n), args(a), block(blk), declared_type(dt) {} 
 
 void FunctionNode::print(int indent) const {
     std::cout << std::string(indent, ' ') << "Function " << name << " ( ";
     for (const auto& a : args) {
         std::cout << a->name << " ";
     }
-    std::cout << std::string(indent, ' ') << ")\n";
+    std::cout << std::string(indent, ' ') << ") " << declared_type <<" \n";
     block->print(indent + 2);
 }
 
@@ -337,16 +337,16 @@ void InheritsNode::accept(Visitor& visitor) {
 // ================== AttributeNode ==================
 AttributeNode::AttributeNode(const std::string& name, 
                            ASTNode* init, 
-                           int line) :
+                           int line, const std::string dt) :
     TypeMember(TypeMember::Kind::Attribute, line), 
-    name(name), initializer(init) {}
+    name(name), initializer(init), declared_type(dt) {}
 
 AttributeNode::~AttributeNode() {
     delete initializer;
 }
 
 void AttributeNode::print(int indent) const {
-    std::cout << std::string(indent, ' ') << "Attribute: " << name << "\n";
+    std::cout << std::string(indent, ' ') << "Attribute ( " << name << " ) " << declared_type << " \n";
     std::cout << std::string(indent + 2, ' ') << "Initializer:\n";
     initializer->print(indent + 4);
 }
@@ -358,10 +358,11 @@ void AttributeNode::accept(Visitor& visitor) {
 // =================== MethodNode ====================
 MethodNode::MethodNode(const std::string& name,
                      std::vector<VariableNode*>* params,
-                     ASTNode* body,
-                     int line) :
+                     BlockNode* blk,
+                     int line,
+                     const std::string dt) :
     TypeMember(TypeMember::Kind::Method, line), 
-    name(name), parameters(params), body(body) {}
+    name(name), parameters(params), body(blk), declared_type(dt) {}
 
 MethodNode::~MethodNode() {
     for (auto param : *parameters) delete param;
@@ -370,7 +371,7 @@ MethodNode::~MethodNode() {
 }
 
 void MethodNode::print(int indent) const {
-    std::cout << std::string(indent, ' ') << "Method: " << name << "\n";
+    std::cout << std::string(indent, ' ') << "Method ( " << name << " ) " <<  declared_type << " \n";
     std::cout << std::string(indent + 2, ' ') << "Parameters:\n";
     for (const auto& param : *parameters) {
         param->print(indent + 4);

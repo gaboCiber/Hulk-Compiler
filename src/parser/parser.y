@@ -46,7 +46,7 @@ ProgramNode* root = new ProgramNode();
 %token GREATER LESS GREATER_THAN LESS_THAN 
 %token AND OR NOT
 %token LPAREN RPAREN SEMICOLON LKEY RKEY LET IN ASSIGNM COMA LAMBDA FUNCTION WHILE IF ELSE ELIF
-%token TYPE NEW INHERITS SELF BASE DOT
+%token TYPE NEW INHERITS SELF BASE DOT DOUBLE_DOT
 %token DESTRUCTIVE_ASSIGNM
 
 %type <node> program expr toplevel_item
@@ -65,7 +65,7 @@ ProgramNode* root = new ProgramNode();
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
 %nonassoc ELIF
-%nonassoc ASSIGNM DESTRUCTIVE_ASSIGNM LAMBDA
+%nonassoc ASSIGNM DESTRUCTIVE_ASSIGNM LAMBDA 
 %right NOT
 %left AND OR 
 %nonassoc EQUAL NOEQUAL
@@ -111,6 +111,17 @@ function:
         $$ = new FunctionNode($2, *$4, block, yylineno);
         delete $4;
     }
+
+  | FUNCTION ID LPAREN arguments RPAREN DOUBLE_DOT ID block_lines {
+        $$ = new FunctionNode($2, *$4, $8, yylineno, $7);
+        delete $4;
+    }
+  | FUNCTION ID LPAREN arguments RPAREN DOUBLE_DOT ID LAMBDA expr {
+        BlockNode* block = new BlockNode();
+        block->push_back($9);
+        $$ = new FunctionNode($2, *$4, block, yylineno, $7);
+        delete $4;
+    }
   ;
 
 arguments:
@@ -124,6 +135,16 @@ arguments:
     }
   | arguments COMA ID {
         $1->push_back(new VariableNode($3, yylineno));
+        $$ = $1;
+    }
+
+  | ID DOUBLE_DOT ID {
+        auto* list = new std::vector<VariableNode*>();
+        list->push_back(new VariableNode($1, yylineno, $3));
+        $$ = list;
+    }
+  | arguments COMA ID DOUBLE_DOT ID {
+        $1->push_back(new VariableNode($3, yylineno, $5));
         $$ = $1;
     }
   ;
@@ -152,6 +173,16 @@ assingments:
         $$ = list;
     }
   | assingments COMA ID ASSIGNM expr {
+        $1->emplace_back(new VariableNode($3, yylineno), $5);
+        $$ = $1;
+    }
+
+  | ID DOUBLE_DOT ID ASSIGNM expr {
+        auto* list = new std::vector<std::pair<VariableNode*, ASTNode*>>();
+        list->emplace_back(new VariableNode($1, yylineno), $3);
+        $$ = list;
+    }
+  | assingments COMA ID DOUBLE_DOT ID ASSIGNM expr {
         $1->emplace_back(new VariableNode($3, yylineno), $5);
         $$ = $1;
     }
@@ -209,14 +240,29 @@ type_body:
     | type_body method SEMICOLON { $1->push_back($2); $$ = $1; };
 
 attribute:
-    ID ASSIGNM expr { $$ = new AttributeNode($1, $3, yylineno); };
+    ID DOUBLE_DOT ID ASSIGNM expr { $$ = new AttributeNode($1, $5, yylineno, $3); };
+  
+  | ID ASSIGNM expr { $$ = new AttributeNode($1, $3, yylineno); };
+  
+    
 
 method:
     ID LPAREN arguments RPAREN LAMBDA expr {
-        $$ = new MethodNode($1, $3, $6, yylineno);
+        BlockNode* block = new BlockNode();
+        block->push_back($6);
+        $$ = new MethodNode($1, $3, *block, yylineno);
     }
-    | ID LPAREN arguments RPAREN block_lines {
+  | ID LPAREN arguments RPAREN block_lines {
         $$ = new MethodNode($1, $3, $5, yylineno);
+    }
+  
+  | ID DOUBLE_DOT ID LPAREN arguments RPAREN LAMBDA expr {
+        BlockNode* block = new BlockNode();
+        block->push_back($8);
+        $$ = new MethodNode($1, $5, *block, yylineno, $3);
+    }
+  | ID DOUBLE_DOT ID LPAREN arguments RPAREN block_lines {
+        $$ = new MethodNode($1, $5, $7, yylineno, $3);
     }
     ;
 

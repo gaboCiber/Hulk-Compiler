@@ -79,7 +79,8 @@ public:
 class VariableNode: public ASTNode {
 public:
     std::string name;
-    VariableNode(const std::string& n, int l);
+    std::string declared_type;
+    VariableNode(const std::string& n, int l, const std::string declared_type="");
     void print(int indent = 0) const override;
     void accept(Visitor& visitor) override;
 };
@@ -99,11 +100,12 @@ public:
 class FunctionNode: public ASTNode {
 public:
     std::string name;
+    std::string declared_type;
     std::vector<VariableNode*> args;
     BlockNode* block;
     Scope* scope = nullptr;
     
-    FunctionNode(const std::string& n, const std::vector<VariableNode*>& a, BlockNode* blk, int l);
+    FunctionNode(const std::string& n, const std::vector<VariableNode*>& a, BlockNode* blk, int l, const std::string declared_type="");
     void print(int indent = 0) const override;
     void accept(Visitor& visitor) override;
     ~FunctionNode();
@@ -141,7 +143,7 @@ class WhileNode : public ASTNode {
 public:
     ASTNode* condition;
     BlockNode* body;
-    Type returnType;
+    Type* returnType;
     
     WhileNode(ASTNode* cond, BlockNode* b, int line);
     void print(int indent = 0) const override;
@@ -154,7 +156,7 @@ class IfNode : public ASTNode {
     ASTNode* elseBranch;
     
 public:
-    Type returnType;
+    Type* returnType;
 
     IfNode(ASTNode* cond, ASTNode* then, ASTNode* elseBr, int line);
     void addElifBranch(ASTNode* cond, ASTNode* branch);
@@ -217,7 +219,11 @@ private:
 
 class AttributeNode : public TypeMember {
 public:
-    AttributeNode(const std::string& name, ASTNode* init, int line);
+
+    ASTNode* initializer;
+    std::string declared_type;
+
+    AttributeNode(const std::string& name, ASTNode* init, int line, const std::string declared_type="");
     ~AttributeNode();
     
     std::string getName() const override { return name; }
@@ -226,15 +232,21 @@ public:
 
 private:
     std::string name;
-    ASTNode* initializer;
 };
 
 class MethodNode : public TypeMember {
 public:
+
+    std::vector<VariableNode*>* parameters;
+    BlockNode* body;
+    Scope* scope = nullptr;
+    std::string declared_type;
+
     MethodNode(const std::string& name,
               std::vector<VariableNode*>* params,
-              ASTNode* body,
-              int line);
+              BlockNode* body,
+              int line,
+              const std::string declared_type="");
     ~MethodNode();
     
     std::string getName() const override { return name; }
@@ -243,8 +255,6 @@ public:
 
 private:
     std::string name;
-    std::vector<VariableNode*>* parameters;
-    ASTNode* body;
 };
 
 class NewNode : public ASTNode {
@@ -288,6 +298,11 @@ public:
 
 class MethodCallNode : public ASTNode {
 public:
+
+    std::vector<ASTNode*> arguments;
+    ASTNode* object;
+
+
     MethodCallNode(ASTNode* obj, 
                   const std::string& name, 
                   const std::vector<ASTNode*>& args, 
@@ -302,8 +317,7 @@ public:
     const std::vector<ASTNode*>& getArguments() const { return arguments; }
 
 private:
-    ASTNode* object;
     std::string method_name;
-    std::vector<ASTNode*> arguments;
+
 };
 

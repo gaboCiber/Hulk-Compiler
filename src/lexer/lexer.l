@@ -64,6 +64,7 @@ void process_escape_chars(char* s);
 "@@"                  return BCONCAT;
 "@"                   return CONCAT;
 "."                   return DOT;
+":"                   return DOUBLE_DOT;
 
 .                     { fprintf(stderr, "[Line %d] Lexer error: símbolo no reconocido '%s'\n", yylineno, yytext); exit(1); }
 

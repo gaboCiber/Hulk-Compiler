@@ -4,6 +4,8 @@
 #include <unordered_map>
 #include <memory>
 
+class Type;
+
 // Solo para funciones (first-class citizens)
 struct FunctionType {
     std::vector<Type*> parameter_types;
@@ -35,4 +37,5 @@ public:
     // Helpers
     bool is_primitive() const;
     bool is_subtype_of(const Type* other) const;
+    static std::string TypeToString(Type* t) { return t->name;}
 };
