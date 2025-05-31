@@ -22,7 +22,7 @@ public:
 
     // Verifica si existe un tipo por nombre
     bool has_type(const std::string& name) const;
-   
+ 
 private:
     bool is_sealed(const std::string& type_name) const ;
 

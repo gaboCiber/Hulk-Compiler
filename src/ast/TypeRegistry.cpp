@@ -55,10 +55,12 @@ Type* TypeRegistry::get_type(const std::string& name) const {
     return it->second.get();
 }
 
+// Verifica si se puede heredar
 bool TypeRegistry::is_sealed(const std::string& type_name) const {
     return type_name == "Number" || type_name == "String" || type_name == "Boolean";
 }
 
+// Verifica si el tipo existe
 bool TypeRegistry::has_type(const std::string& name) const {
     return types_.count(name) > 0;
 }

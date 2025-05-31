@@ -1,6 +1,7 @@
 #pragma once
 #include "ast/Visitor.hpp"
 #include "semantic/Context.hpp"
+#include <stack>
 
 class DefinitionVisitor : public Visitor {
 public:
@@ -39,4 +40,18 @@ public:
 private:
     bool errorFlag = false;
     std::string errorMsg;
+
+    std::stack<std::string> current_type_stack;
+    
+    void push_current_type(const std::string& type_name) {
+        current_type_stack.push(type_name);
+    }
+    
+    void pop_current_type() {
+        current_type_stack.pop();
+    }
+    
+    std::string get_current_type() const {
+        return current_type_stack.empty() ? "" : current_type_stack.top();
+    }
 };

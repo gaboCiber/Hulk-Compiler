@@ -1,6 +1,7 @@
 #pragma once
 #include "ast/Visitor.hpp"
 #include "semantic/Context.hpp"
+#include <stack>
 
 class UsageCheckerVisitor : public Visitor {
 public:
@@ -38,4 +39,18 @@ public:
 private:
     bool errorFlag = false;
     std::string errorMsg;
+
+    std::stack<Type*> current_type_stack;
+    
+    void push_current_type(const std::string& type_name) {
+        current_type_stack.push(ctx.type_registry.get_type(type_name));
+    }
+    
+    void pop_current_type() {
+        current_type_stack.pop();
+    }
+    
+    Type* get_current_type() const {
+        return current_type_stack.empty() ? nullptr : current_type_stack.top();
+    }
 };

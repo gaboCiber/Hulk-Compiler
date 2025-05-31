@@ -25,12 +25,25 @@ void UsageCheckerVisitor::visit(VariableNode& node) {
         errorFlag = true;
         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: variable '" + node.name +  "' no definida en este scope.\n";
     }
+
+    if(node.declared_type != "")
+    {
+        if(!ctx.type_registry.has_type(node.declared_type))
+        {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo '" + node.declared_type +  "' no esta definido.\n";
+        }
+    }
 }
 
 void UsageCheckerVisitor::visit(LetInNode& node) {
     ctx.pushScope(node.scope);
     for (auto& pair: node.bindings)
-    {
+    {   
+        pair.first->accept(*this);
+        if(errorFlag)
+            return;
+
         pair.second->accept(*this);
 
         if(errorFlag)
@@ -51,7 +64,26 @@ void UsageCheckerVisitor::visit(BlockNode& node) {
 }
 
 void UsageCheckerVisitor::visit(FunctionNode& node) {
+    
+    if(node.declared_type != "")
+    {
+        if(!ctx.type_registry.has_type(node.declared_type))
+        {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo '" + node.declared_type +  "' no esta definido.\n";
+            return;
+        }
+    }
+    
     ctx.pushScope(node.scope);
+
+    for (auto var : node.args)
+    {
+        var->accept(*this);
+        if (errorFlag) 
+            return;
+    }
+
     node.block->accept(*this);
     ctx.popScope();
 }
@@ -114,42 +146,201 @@ void UsageCheckerVisitor::visit(IfNode& node) {
 }
 
 void UsageCheckerVisitor::visit(TypeMember& node){
-
+    throw std::runtime_error("Se metio en TypeMember");
 }
 
 void UsageCheckerVisitor::visit(TypeNode& node){
+    
+    push_current_type(node.name);
+    
+    for (auto arg : *node.type_args){
+        arg->accept(*this);
+        if(errorFlag)
+            return;
+    }
+
+    if(node.inherits != nullptr)
+    {
+        node.inherits->accept(*this);
+        if(errorFlag)
+                return;
+    }
+    else
+    {
+        Type* current = get_current_type();
+        current->object_data.parent = ctx.object_type;
+    }
+
+    for(auto member: node.members){
+        member->accept(*this);
+        if(errorFlag)
+            return;
+    }
+
+    pop_current_type();
 
 }
 
 void UsageCheckerVisitor::visit(InheritsNode& node){
+    
+    if(!ctx.type_registry.has_type(node.parent_type))
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo '" + node.parent_type +  "' no esta definido.\n";
+        return;
+    }
+
+    Type* type = ctx.type_registry.get_type(node.parent_type);
+    Type* current = get_current_type();
+
+    if (type->is_subtype_of(current))
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: herencia circular entre '" + node.parent_type + "' y " + current->name + "\n";
+        return;
+    }
+
+    current->object_data.parent = type;
+
+    if (node.parent_args) {
+        for (auto arg : *node.parent_args) {
+            arg->accept(*this);
+            if (errorFlag) 
+                return;
+        }
+    }
 
 }
 
 void UsageCheckerVisitor::visit(AttributeNode& node){
-
+    // Procesar el inicializador si existe
+    if (node.initializer) {
+        node.initializer->accept(*this);
+        if (errorFlag) return;
+    }
 }
 
 void UsageCheckerVisitor::visit(MethodNode& node){
+    
+    if(!ctx.type_registry.has_type(node.declared_type))
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo '" + node.declared_type +  "' no esta definido.\n";
+        return;
+    }
+
+    std::string method_full_name = get_current_type()->name + "." + node.getName();
+
+    FunctionInfo* func = ctx.lookupFunction(method_full_name);
+    
+    func->node->accept(*this);
 
 }
 
 void UsageCheckerVisitor::visit(NewNode& node){
+    
+    if(!ctx.type_registry.has_type(node.type_name))
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo '" + node.type_name +  "' no esta definido.\n";
+        return;
+    }
+
+    Type* type = ctx.type_registry.get_type(node.type_name);
+    if (type->is_primitive()) {
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error: no se puede instanciar tipo primitivo '" + node.type_name + "'";
+        errorFlag = true;
+        return;
+    }
+
+
+    for(auto arg : *node.arguments)
+    {
+        arg->accept(*this);
+        if (errorFlag) 
+            return;
+    }
 
 }
 
 void UsageCheckerVisitor::visit(MemberAccessNode& node){
 
+    if(SelfNode* var = dynamic_cast<SelfNode*>(node.object))
+    {
+        var->accept(*this);
+        if (errorFlag) 
+            return;
+
+    }
+    else
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: los atributos de un tipo son providos. \n'";
+        return;
+    }
+    
+    if(get_current_type() == nullptr){
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: la instrucción ' self ' solo puede ser utilizado en una declaración de tipos. \n";
+    }
+
+    Type* current = get_current_type();
+    
+    if(current->object_data.methods.find(node.member_name) == current->object_data.methods.end())
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo ' " + current->name + "' no posee un atributo llamado ' " + node.member_name + " ' .\n'";
+        return;
+    }
+
 }
 
 void UsageCheckerVisitor::visit(SelfNode& node){
-
+    
+    if(get_current_type() == nullptr){
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: la instrucción ' self ' solo puede ser utilizado en una declaración de tipos. \n";
+    }
 }
 
 void UsageCheckerVisitor::visit(BaseNode& node){
 
+    if(get_current_type() == nullptr){
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: la instrucción ' self ' solo puede ser utilizado en una declaración de tipos. \n";
+        return;
+    }
+
+    Type* current = get_current_type();
+    
+    if(current->object_data.parent == nullptr)
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: la instrucción ' base ' solo puede ser utilizado en tipos hijos diferentes del 'Object'. \n";
+        return;
+    }
+
+    if (node.arguments) {
+        for (auto arg : *node.arguments) {
+            arg->accept(*this);
+            if (errorFlag) 
+                return;
+        }
+    }
+
 }
 
 void UsageCheckerVisitor::visit(MethodCallNode& node){
+
+    node.object->accept(*this);
+    if (errorFlag) 
+            return;
+
+    for (auto arg : node.arguments) {
+        arg->accept(*this);
+        if (errorFlag) 
+            return;
+    }
 
 }
     
