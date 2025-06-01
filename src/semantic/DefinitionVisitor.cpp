@@ -51,6 +51,8 @@ void DefinitionVisitor::visit(BlockNode& node) {
 
 void DefinitionVisitor::visit(FunctionNode& node) {
     node.scope = new Scope(ctx.currentScope());
+    node.scope->functionName = node.name;
+    
     ctx.pushScope(node.scope);
     for(auto& arg : node.args)
     {
@@ -124,6 +126,7 @@ void DefinitionVisitor::visit(TypeMember& node){
 
 void DefinitionVisitor::visit(TypeNode& node){
 
+    // Registrar el tipo principal
     auto msg = ctx.type_registry.register_user_type(node.name, node.inherits ? node.inherits->parent_type : "Object");
 
     if (msg != "") {
@@ -132,27 +135,35 @@ void DefinitionVisitor::visit(TypeNode& node){
         return;
     }
 
+    // Crear scope para los parámetros de tipo
+    node.scope = new Scope(ctx.currentScope());
+    ctx.pushScope(node.scope);
     push_current_type(node.name);
 
+    // Registrar parámetros de tipo como variables especiales
     for (auto arg : *node.type_args){
-        arg->accept(*this);
-        if(errorFlag)
-            return;
+        // Los parámetros de tipo se registran como variables con tipo genérico
+        node.scope->define(arg->name, nullptr);
+        SymbolInfo* info = node.scope->localLookup(arg->name);
+        info->isTypeParameter = true;
     }
 
+    // Procesar herencia
     if(node.inherits != nullptr)
     {
         node.inherits->accept(*this);
         if(errorFlag)
                 return;
     }
-        
+
+    // Procesar herencia
     for(auto member: node.members){
         member->accept(*this);
         if(errorFlag)
             return;
     }
 
+    ctx.popScope();
     pop_current_type();
 
 }
@@ -184,8 +195,8 @@ void DefinitionVisitor::visit(MethodNode& node) {
     std::string method_full_name = get_current_type() + "." + node.getName();
     
     // Registrar la función como una función normal
-    auto func_node = new FunctionNode(method_full_name, *node.parameters, node.body,node.line );
-    
+    auto func_node = new FunctionNode(method_full_name, *node.parameters, node.body,node.line, node.declared_type);
+
     if (!ctx.defineFunction(method_full_name, func_node)) {
         errorFlag = true;
         errorMsg = "[Line " + std::to_string(node.line) + "] Método ya definido: " + node.getName();

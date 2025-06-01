@@ -22,8 +22,12 @@ public:
 
     // Verifica si existe un tipo por nombre
     bool has_type(const std::string& name) const;
+
+    // Encuentra el ancestro común más bajo entre dos tipos
+    Type* findLowestCommonAncestor(Type* type1, Type* type2) const;
  
 private:
     bool is_sealed(const std::string& type_name) const ;
+    std::vector<Type*> getAncestors(Type* type) const;
 
 };

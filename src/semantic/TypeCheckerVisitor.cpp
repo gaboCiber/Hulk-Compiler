@@ -4,41 +4,41 @@
 TypeCheckerVisitor::TypeCheckerVisitor(Context& context) : ctx(context) {}
 
 void TypeCheckerVisitor::visit(FloatNode& node) {
-    lastType = Type::Float;
+    lastType = ctx.number_type;
 }
 
 void TypeCheckerVisitor::visit(BoolNode& node) {
-    lastType = Type::Bool;
+    lastType = ctx.boolean_type;
 }
 
 void TypeCheckerVisitor::visit(StringNode& node) {
-    lastType = Type::String;
+    lastType = ctx.string_type;
 }
 
 void TypeCheckerVisitor::visit(UnaryOpNode& node) {
     // Primero chequea el hijo
     node.node->accept(*this);
-    Type childT = lastType;
+    Type* childT = lastType;
     if (errorFlag) return;  // corto si ya hubo error
 
     // Ahora, según el operador:
     if (node.op == "-") {
         // Negación: solo float
-        if (childT != Type::Float) {
+        if (childT != ctx.number_type) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere un operando de tipo float.";
             return;
         }
-        lastType = Type::Float;
+        lastType = ctx.number_type;
     }
     else if (node.op == "!") {
         // Negación lógica: solo bool
-        if (childT != Type::Bool) {
+        if (childT != ctx.boolean_type) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere un operando booleano.";
             return;
         }
-        lastType = Type::Bool;
+        lastType = ctx.boolean_type;
     }
     else {
         errorFlag = true;
@@ -49,33 +49,33 @@ void TypeCheckerVisitor::visit(UnaryOpNode& node) {
 void TypeCheckerVisitor::visit(BinOpNode& node) {
     // Primero chequea el hijo izquierdo
     node.left->accept(*this);
-    Type leftT = lastType;
+    Type* leftT = lastType;
     if (errorFlag) return;  // corto si ya hubo error
 
     // Luego el derecho
     node.right->accept(*this);
-    Type rightT = lastType;
+    Type* rightT = lastType;
     if (errorFlag) return;
 
     // Ahora, según el operador:
     if (node.op == "+" || node.op == "-" || node.op == "*" ||
         node.op == "/" || node.op == "^" || node.op == "%") {
         // Aritméticos: ambos deben ser float
-        if (leftT != Type::Float || rightT != Type::Float) {
+        if (leftT != ctx.number_type || rightT != ctx.number_type) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos de tipo float.";
             return;
         }
-        lastType = Type::Float;
+        lastType = ctx.number_type;
     }
     else if (node.op == ">" || node.op == "<" || node.op == ">=" || node.op == "<=") {
         // Relacionales: ambos deben ser float, resultado bool
-        if (leftT != Type::Float || rightT != Type::Float) {
+        if (leftT != ctx.number_type || rightT != ctx.number_type) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos de tipo float.";
             return;
         }
-        lastType = Type::Bool;
+        lastType = ctx.boolean_type;
     }
     else if (node.op == "==" || node.op == "!=") {
         if (leftT != rightT) {
@@ -83,7 +83,7 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos del mismo tipo.";
             return;
         }
-        lastType = Type::Bool;
+        lastType = ctx.boolean_type;
     }
     else if( node.op == ":=")
     {
@@ -96,21 +96,21 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
         lastType = rightT;
     }
     else if (node.op == "&" || node.op == "|") {
-        if (leftT != Type::Bool || rightT != Type::Bool) {
+        if (leftT != ctx.boolean_type || rightT != ctx.boolean_type) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos booleanos.";
             return;
         }
-        lastType = Type::Bool;
+        lastType = ctx.boolean_type;
     }
     else if (node.op == "@") {
         // Concatenación: solo string
-        if (leftT == Type::Unknown || rightT == Type::Unknown) {
+        if (leftT->is_subtype_of(ctx.object_type) || rightT->is_subtype_of(ctx.object_type)) {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: los operadorandos '" + node.op + "' no pudieron ser inferidos.";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: los operadorandos '" + node.op + "' deben ser de tipos primitivos.";
             return;
         }
-        lastType = Type::String;
+        lastType = ctx.string_type;
     }
     else {
         errorFlag = true;
@@ -198,7 +198,7 @@ void TypeCheckerVisitor::visit(CallFuncNode& node){
         if(errorFlag)
             return;
 
-        Type actualType = lastType;
+        Type* actualType = lastType;
 
         VariableNode* expectedArg = info->node->args[i];
         SymbolInfo* expectedInfo = info->node->scope->lookup(expectedArg->name);
@@ -211,7 +211,7 @@ void TypeCheckerVisitor::visit(CallFuncNode& node){
 
         if (expectedInfo->type != actualType) {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el argumento '" + expectedArg->name + "' de la funcion '" + info->node->name + "' es de tipo '" + TypeToString(expectedInfo->type) + "' . No de tipo '" + TypeToString(actualType) +  "' .\n";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el argumento '" + expectedArg->name + "' de la funcion '" + info->node->name + "' es de tipo '" + Type::Type::TypeToString(expectedInfo->type) + "' . No de tipo '" + Type::TypeToString(actualType) +  "' .\n";
             return;
         }
     }
@@ -251,7 +251,7 @@ void TypeCheckerVisitor::checkBuiltinCall(CallFuncNode& node) {
 
             if (lastType != binfo->argTypes[i]) {
                 errorFlag = true;
-                errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el argumento '" + std::to_string(i + 1) + "' de la funcion '" + node.functionName + "' es de tipo '" + TypeToString(binfo->argTypes[i]) + "' . No de tipo '" + TypeToString(lastType) +  "' .\n";
+                errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el argumento '" + std::to_string(i + 1) + "' de la funcion '" + node.functionName + "' es de tipo '" + Type::TypeToString(binfo->argTypes[i]) + "' . No de tipo '" + Type::TypeToString(lastType) +  "' .\n";
                 return;
             }
         }
@@ -266,7 +266,7 @@ void TypeCheckerVisitor::visit(WhileNode& node) {
     if(errorFlag)
             return;
 
-    if(lastType != Type::Bool)
+    if(lastType != ctx.boolean_type)
     {
         errorFlag = true;
         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: la condición del while debe ser de tipo booleano.\n";
@@ -293,7 +293,7 @@ void TypeCheckerVisitor::visit(IfNode& node) {
         if(errorFlag)
             return;
 
-        if(lastType != Type::Bool)
+        if(lastType != ctx.boolean_type)
         {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(pair.first->line) + "] Error semántico: la condición del if/elif debe ser de tipo booleano.\n";
@@ -328,11 +328,26 @@ void TypeCheckerVisitor::visit(IfNode& node) {
 }
 
 void TypeCheckerVisitor::visit(TypeMember& node){
-
+    throw std::runtime_error("Se metio en TypeMember");
 }
 
 void TypeCheckerVisitor::visit(TypeNode& node){
+    
+    for (auto arg : *node.type_args){
+        arg->accept(*this);
+        if(errorFlag)
+            return;
+    }
 
+    node.inherits->accept(*this);
+    if(errorFlag)
+            return;
+
+    for(auto member: node.members){
+        member->accept(*this);
+        if(errorFlag)
+            return;
+    }
 }
 
 void TypeCheckerVisitor::visit(InheritsNode& node){

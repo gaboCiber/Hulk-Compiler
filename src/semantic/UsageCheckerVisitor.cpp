@@ -152,7 +152,8 @@ void UsageCheckerVisitor::visit(TypeMember& node){
 void UsageCheckerVisitor::visit(TypeNode& node){
     
     push_current_type(node.name);
-    
+    ctx.pushScope(node.scope);
+
     for (auto arg : *node.type_args){
         arg->accept(*this);
         if(errorFlag)
@@ -178,6 +179,7 @@ void UsageCheckerVisitor::visit(TypeNode& node){
     }
 
     pop_current_type();
+    ctx.popScope();
 
 }
 
@@ -284,12 +286,12 @@ void UsageCheckerVisitor::visit(MemberAccessNode& node){
         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: la instrucción ' self ' solo puede ser utilizado en una declaración de tipos. \n";
     }
 
-    Type* current = get_current_type();
+    auto attrs_info = get_current_type()->object_data.attributes;
     
-    if(current->object_data.methods.find(node.member_name) == current->object_data.methods.end())
+    if(attrs_info.find(node.member_name) == attrs_info.end())
     {
         errorFlag = true;
-        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo ' " + current->name + "' no posee un atributo llamado ' " + node.member_name + " ' .\n'";
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo ' " +  get_current_type()->name + "' no posee un atributo llamado ' " + node.member_name + " ' .\n'";
         return;
     }
 
@@ -341,6 +343,20 @@ void UsageCheckerVisitor::visit(MethodCallNode& node){
         if (errorFlag) 
             return;
     }
+    
+    if(get_current_type() == nullptr){
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: la instrucción ' self ' solo puede ser utilizado en una declaración de tipos. \n";
+    }
 
+    auto methods_info = get_current_type()->object_data.methods;
+    
+    if(methods_info.find(node.getMethodName()) == methods_info.end())
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo ' " +  get_current_type()->name + "' no posee un método llamado ' " + node.getMethodName() + " ' .\n'";
+        return;
+    }
+    
 }
     

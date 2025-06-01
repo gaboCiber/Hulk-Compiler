@@ -177,6 +177,7 @@ public:
     std::vector<VariableNode*>* type_args;
     InheritsNode* inherits;
     std::vector<TypeMember*> members;
+    Scope* scope = nullptr;
 
     TypeNode(const std::string& name, 
             std::vector<VariableNode*>* args,
@@ -239,7 +240,6 @@ public:
 
     std::vector<VariableNode*>* parameters;
     BlockNode* body;
-    Scope* scope = nullptr;
     std::string declared_type;
 
     MethodNode(const std::string& name,

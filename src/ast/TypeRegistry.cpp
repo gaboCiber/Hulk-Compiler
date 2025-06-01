@@ -64,3 +64,35 @@ bool TypeRegistry::is_sealed(const std::string& type_name) const {
 bool TypeRegistry::has_type(const std::string& name) const {
     return types_.count(name) > 0;
 }
+
+std::vector<Type*> TypeRegistry::getAncestors(Type* type) const {
+    std::vector<Type*> ancestors;
+    while (type != nullptr) {
+        ancestors.push_back(type);
+        type = type->object_data.parent;
+    }
+    return ancestors;
+}
+
+Type* TypeRegistry::findLowestCommonAncestor(Type* type1, Type* type2) const {
+    if (!type1 || !type2) return nullptr;
+    
+    // Caso especial: si son el mismo tipo
+    if (type1 == type2) return type1;
+    
+    // Obtener ancestros de ambos tipos
+    auto ancestors1 = getAncestors(type1);
+    auto ancestors2 = getAncestors(type2);
+    
+    // Buscar el primer ancestro común
+    for (auto ancestor1 : ancestors1) {
+        for (auto ancestor2 : ancestors2) {
+            if (ancestor1 == ancestor2) {
+                return ancestor1;
+            }
+        }
+    }
+    
+    // Esto no debería pasar ya que todos los tipos heredan de Object
+    return get_type("Object");
+}

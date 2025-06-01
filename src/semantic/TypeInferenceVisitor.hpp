@@ -3,6 +3,7 @@
 #include "ast/Visitor.hpp"
 #include "semantic/Context.hpp"
 #include <string>
+#include <stack>
 
 class TypeInferenceVisitor : public Visitor {
 public:
@@ -11,7 +12,7 @@ public:
 
     TypeInferenceVisitor(Context& context);
 
-    void putTypeOnVariables(ASTNode *node, Type t);
+    void putTypeOnVariables(ASTNode *node, Type* t);
 
     // Visitor interface
     void visit(FloatNode& node) override;
@@ -40,10 +41,29 @@ public:
 
     bool hasError() const { return errorFlag; }
     const std::string& getError() const { return errorMsg; }
-    Type getType() const { return lastType; }
+    Type* getType() const { return lastType; }
 
 private:
-    Type lastType = Type::Float;
+    Type* lastType = nullptr;
     bool errorFlag = false;
     std::string errorMsg;
+
+    std::stack<Type*> current_type_stack;
+    
+    void push_current_type(const std::string& type_name) {
+        Type* type = ctx.type_registry.get_type(type_name);
+        if (type) {
+            current_type_stack.push(type);
+        }
+    }
+    
+    void pop_current_type() {
+        if (!current_type_stack.empty()) {
+            current_type_stack.pop();
+        }
+    }
+    
+    Type* get_current_type() const {
+        return current_type_stack.empty() ? nullptr : current_type_stack.top();
+    }
 };

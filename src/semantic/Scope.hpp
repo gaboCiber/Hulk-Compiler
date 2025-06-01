@@ -3,6 +3,7 @@
 #include <string>
 #include "ast/ASTNode.hpp"
 #include <llvm/IR/Instructions.h>
+#include <string>
 
 struct SymbolInfo {
     Type* type = nullptr;
@@ -10,11 +11,13 @@ struct SymbolInfo {
     llvm::Value* llvmValue = nullptr;
     bool isBuiltin = false;  // Nueva bandera
     bool isConstant = false; // Para constantes built-in
+    bool isTypeParameter = false; // Para marcar parámetros de tipo
 };
 
 class Scope {
 public:
     Scope* parent;
+    std::string functionName = "";
 
     Scope(Scope* parentScope = nullptr);
     ~Scope();
