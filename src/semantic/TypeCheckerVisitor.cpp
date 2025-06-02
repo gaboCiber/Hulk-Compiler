@@ -105,7 +105,7 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
     }
     else if (node.op == "@") {
         // Concatenación: solo string
-        if (leftT->is_subtype_of(ctx.object_type) || rightT->is_subtype_of(ctx.object_type)) {
+        if (!leftT->is_primitive() ||!rightT->is_primitive()) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: los operadorandos '" + node.op + "' deben ser de tipos primitivos.";
             return;
@@ -126,14 +126,24 @@ void TypeCheckerVisitor::visit(BlockNode& node) {
 }
 
 void TypeCheckerVisitor::visit(VariableNode& node) {
+
+    Type* expected = nullptr;
+    if(node.declared_type != "")
+        expected = ctx.type_registry.get_type(node.declared_type);
+    
     SymbolInfo* info = ctx.currentScope()->lookup(node.name);
-    
-    // if (info == nullptr) {
-    //     errorFlag = true;
-    //     errorMsg = "Error: Variable '" + node.name + "' no definida. Línea " + std::to_string(node.line);
-    // }
-    
+
+    if (expected != nullptr) {
+        if(! info->type->is_subtype_of(expected))
+        {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferido (" + info->type->name + ") de la variable ' " + node.name + " ' es diferente a su tipo esperado (" + expected->name + ").\n" ;
+            return;
+        }    
+    }
+
     lastType = info->type;
+    
 }
 
 void TypeCheckerVisitor::visit(LetInNode& node) {
@@ -146,7 +156,13 @@ void TypeCheckerVisitor::visit(LetInNode& node) {
             return;
 
         SymbolInfo* info = ctx.currentScope()->lookup(pair.first->name);
-        info->type = lastType;
+
+        if(!lastType->is_subtype_of(info->type))
+        {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferido (" + lastType->name + ") de la variable ' " + pair.first->name + " ' es diferente a su tipo esperado (" + info->type->name + ").\n" ;
+            return;
+        }
     }
         
     node.block->accept(*this);
@@ -155,9 +171,26 @@ void TypeCheckerVisitor::visit(LetInNode& node) {
 
 void TypeCheckerVisitor::visit(FunctionNode& node) {
     ctx.pushScope(node.scope);
+    
     node.block->accept(*this);
+
+    for (auto& arg: node.args)
+    {
+        arg->accept(*this);
+        if(errorFlag)
+            return;
+
+    }
+
     FunctionInfo* info = ctx.lookupFunction(node.name);
-    info->returnType = lastType;
+    
+    if(lastType->is_subtype_of(info->returnType))
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferedo de la función '" + node.name + "' es diferente a su tipo esperado.\n";
+        return;
+    }
+    
     ctx.popScope();
 }
 
@@ -209,9 +242,9 @@ void TypeCheckerVisitor::visit(CallFuncNode& node){
             return;
         }
 
-        if (expectedInfo->type != actualType) {
+        if (!actualType->is_subtype_of(expectedInfo->type)) {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el argumento '" + expectedArg->name + "' de la funcion '" + info->node->name + "' es de tipo '" + Type::Type::TypeToString(expectedInfo->type) + "' . No de tipo '" + Type::TypeToString(actualType) +  "' .\n";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error: el argumento '" + expectedArg->name + "' debe ser de tipo '" + expectedInfo->type->name + "' o subtipo";
             return;
         }
     }
@@ -249,9 +282,9 @@ void TypeCheckerVisitor::checkBuiltinCall(CallFuncNode& node) {
         for (size_t i = 0; i < node.arguments.size(); ++i) {
             node.arguments[i]->accept(*this);
 
-            if (lastType != binfo->argTypes[i]) {
+            if (!lastType->is_subtype_of(binfo->argTypes[i])) {
                 errorFlag = true;
-                errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el argumento '" + std::to_string(i + 1) + "' de la funcion '" + node.functionName + "' es de tipo '" + Type::TypeToString(binfo->argTypes[i]) + "' . No de tipo '" + Type::TypeToString(lastType) +  "' .\n";
+                errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: Argumento " + std::to_string(i+1) + " debe ser '" + binfo->argTypes[i]->name + "' o subtipo";
                 return;
             }
         }
@@ -283,48 +316,44 @@ void TypeCheckerVisitor::visit(WhileNode& node) {
         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferido del bloque while es diferente a su tipo chequeado.\n";
         return;
     }
-    
     //lastType = *node.returnType;
 }
 
 void TypeCheckerVisitor::visit(IfNode& node) {
+    Type* expectedType = node.returnType;
+    
     for(auto& pair: node.getBranches()){
+        // Verificar condición
         pair.first->accept(*this);
-        if(errorFlag)
-            return;
-
-        if(lastType != ctx.boolean_type)
-        {
+        if (errorFlag) return;
+        
+        if (lastType != ctx.boolean_type) {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(pair.first->line) + "] Error semántico: la condición del if/elif debe ser de tipo booleano.\n";
+            errorMsg = "[Line " + std::to_string(pair.first->line) + "] La condición debe ser booleana";
             return;
         }
 
+        // Verificar cuerpo
         pair.second->accept(*this);
-        if(errorFlag)
-            return;
-
-        if(lastType != node.returnType)
-        {
+        if (errorFlag) return;
+        
+        if (!lastType->is_subtype_of(expectedType)) {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(pair.second->line) + "] Error semántico: todos los bloque if/elif deben retornar el mismo tipo.\n";
+            errorMsg = "[Line " + std::to_string(pair.second->line) + "] El bloque debe retornar '" + expectedType->name + "' o subtipo";
             return;
         }
     }
 
-    if(ASTNode* br = node.getElseBranch()) {
+    if (ASTNode* br = node.getElseBranch()) {
         br->accept(*this);
-        if(errorFlag)
-            return;
-
-        if(lastType != node.returnType)
-        {
+        if (errorFlag) return;
+        
+        if (!lastType->is_subtype_of(expectedType)) {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(br->line) + "] Error semántico: todos los bloque else deben retornar el mismo tipo.\n";
+            errorMsg = "[Line " + std::to_string(br->line) + "] El bloque else debe retornar '" + expectedType->name + "' o subtipo";
             return;
         }
     }
-
 }
 
 void TypeCheckerVisitor::visit(TypeMember& node){
@@ -333,52 +362,284 @@ void TypeCheckerVisitor::visit(TypeMember& node){
 
 void TypeCheckerVisitor::visit(TypeNode& node){
     
-    for (auto arg : *node.type_args){
+    Type* current_type = ctx.type_registry.get_type(node.name);
+
+    push_current_type(current_type);
+    ctx.pushScope(node.scope);
+
+    // Verificar parámetros de tipo
+    for (auto arg : *node.type_args) {
         arg->accept(*this);
-        if(errorFlag)
+        if (errorFlag) 
             return;
+
+        current_type->object_data.constructor[arg->name] = lastType;
     }
 
-    node.inherits->accept(*this);
+    // Verificar herencia
+    if (node.inherits) {
+        
+        if (node.inherits->parent_args->size() < node.type_args->size()) {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Erro semántico: Número incorrecto de argumentos para tipo padre";
+            return;
+        }
+
+        node.inherits->accept(*this);
+        if (errorFlag) return;
+    }
+
+    // Verificar miembros
+    for (auto member : node.members) {
+        member->accept(*this);
+        if (errorFlag) return;
+    }
+    
+    ctx.popScope();
+    pop_current_type();
+}
+
+
+void TypeCheckerVisitor::visit(InheritsNode& node) {
+    Type* parent_type = ctx.type_registry.get_type(node.parent_type);
+    
+    if (!parent_type) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Tipo padre no existe: " + node.parent_type;
+        return;
+    }
+        
+    // Verificar argumentos del padre
+    if (node.parent_args) {
+        // Obtener tipo base para comparar parámetros
+
+        auto arg_info = parent_type->object_data.constructor.begin();
+        for (size_t i = 0; i < node.parent_args->size(); i++) {
+            
+            (*node.parent_args)[i]->accept(*this);
+            if (errorFlag) return;
+            
+            //Verificar compatibilidad con parámetros del tipo padre
+            auto& [arg_name, arg_type] = *arg_info;
+            if (!lastType->is_subtype_of(arg_type)) {
+                errorFlag = true;
+                errorMsg = "[Line " + std::to_string(node.line) + "] Argumento de tipo incompatible";
+                return;
+            }
+
+            std::advance(arg_info, 1);
+        }
+    }
+}
+
+void TypeCheckerVisitor::visit(AttributeNode& node) {
+    Type* current_type = get_current_type();
+    Type* declared_type = node.declared_type.empty() ? nullptr : 
+                        ctx.type_registry.get_type(node.declared_type);
+
+    // Verificar inicializador
+    node.initializer->accept(*this);
+    if (errorFlag) 
+        return;
+
+    // Si tiene tipo declarado, verificar compatibilidad
+    if (declared_type && !lastType->is_subtype_of(declared_type)) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: El tipo inicializador ( " + lastType->name + " ) del atributo ' " + node.getName() + " ' incompatible con tipo declarado ( " + declared_type->name +  " ). \n";
+        return;
+    }
+
+    // Registrar tipo final del atributo
+    Type* attr_type = declared_type ? declared_type : lastType;
+    current_type->object_data.attributes[node.getName()] = attr_type;
+    lastType = attr_type;
+}
+
+void TypeCheckerVisitor::visit(MethodNode& node) {
+    Type* current_type = get_current_type();
+    std::string method_name = current_type->name + "." + node.getName();
+    FunctionInfo* func_info = ctx.lookupFunction(method_name);
+
+    if (!func_info) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Método no registrado: " + method_name;
+        return;
+    }
+
+    func_info->node->accept(*this);
     if(errorFlag)
             return;
 
-    for(auto member: node.members){
-        member->accept(*this);
-        if(errorFlag)
+    // Verificar tipo de retorno declarado
+    Type* declared_return = node.declared_type.empty() ? nullptr :
+                          ctx.type_registry.get_type(node.declared_type);
+
+
+    auto method_info = get_current_type()->object_data.methods[node.getName()];
+
+    // Procesar cuerpo del método
+    ctx.pushScope(func_info->node->scope);
+        
+    size_t i = 0;
+    for (auto& arg: func_info->node->args)
+    {
+        Type* declared_arg = ctx.type_registry.get_type(arg->name);
+        SymbolInfo* info = ctx.currentScope()->lookup(arg->name);
+        
+        if(!info->type->is_subtype_of(declared_arg))
+        {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error: el argumento '" + arg->name + "' debe ser de tipo '" + declared_arg->name + "' o subtipo";
             return;
+        }
+        
+        method_info->parameter_types.at(i) = declared_arg;
+
+        i++;
     }
+
+    ctx.popScope();
+
+    // Verificar compatibilidad de retorno
+    if (declared_return && !lastType->is_subtype_of(declared_return)) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: Retorno incompatible con tipo declarado";
+        return;
+    }
+
+    // Registrar tipo de retorno final
+    Type* return_type = declared_return ? declared_return : lastType;
+    func_info->returnType = method_info->return_type = return_type;
+    lastType = return_type;
+
 }
 
-void TypeCheckerVisitor::visit(InheritsNode& node){
+void TypeCheckerVisitor::visit(NewNode& node) {
+    Type* type = ctx.type_registry.get_type(node.type_name);
+    
+    // Verificar argumentos del constructor
+    if (node.arguments->size() != type->object_data.constructor.size()) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: Número incorrecto de argumentos para el constructor";
+        return;
+    }
 
-}
+    auto arg_info = type->object_data.constructor.begin();
+    for (size_t i = 0; i < node.arguments->size(); i++) {
+        (*node.arguments)[i]->accept(*this);
+        if (errorFlag) return;
+        
+        auto& [arg_name, arg_type] = *arg_info;
+        if (!lastType->is_subtype_of(arg_type)) {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: Argumento de constructor incompatible";
+            return;
+        }
 
-void TypeCheckerVisitor::visit(AttributeNode& node){
+        std::advance(arg_info, 1);
+    }
 
-}
-
-void TypeCheckerVisitor::visit(MethodNode& node){
-
-}
-
-void TypeCheckerVisitor::visit(NewNode& node){
-
+    lastType = type;
 }
 
 void TypeCheckerVisitor::visit(MemberAccessNode& node){
+    node.object->accept(*this);
+    if (errorFlag) 
+        return;
 
+    lastType = get_current_type()->object_data.attributes[node.member_name];
 }
 
 void TypeCheckerVisitor::visit(SelfNode& node){
-
+    Type* current = get_current_type();
+    if (!current) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error: 'self' usado fuera de tipo";
+        return;
+    }
+    lastType = current;
 }
 
-void TypeCheckerVisitor::visit(BaseNode& node){
+void TypeCheckerVisitor::visit(BaseNode& node) {
+    Type* current = get_current_type();
 
+    // Verificar argumentos si existen
+    if (node.arguments) {
+        // Verificar compatibilidad con constructor del padre
+        Type* parent_type = current->object_data.parent;
+
+        if (node.arguments->size() != parent_type->object_data.constructor.size()) {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: Número incorrecto de argumentos para el constructor";
+            return;
+        }
+
+        auto arg_info = parent_type->object_data.constructor.begin();
+        for (size_t i = 0; i < node.arguments->size(); i++) {
+            (*node.arguments)[i]->accept(*this);
+            if (errorFlag) return;
+            
+            auto& [arg_name, arg_type] = *arg_info;
+            if (!lastType->is_subtype_of(arg_type)) {
+                errorFlag = true;
+                errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: Argumento de constructor incompatible";
+                return;
+            }
+
+            std::advance(arg_info, 1);
+        }
+
+    }
+
+    lastType = current->object_data.parent;
 }
 
-void TypeCheckerVisitor::visit(MethodCallNode& node){
+void TypeCheckerVisitor::visit(MethodCallNode& node) {
+    // Verificar objeto receptor
+    node.object->accept(*this);
+    if (errorFlag) return;
+    
+    Type* object_type = lastType;
 
+    // Buscar método en la jerarquía
+    FunctionType* method_type = nullptr;
+    Type* temp = object_type;
+    while (temp != nullptr) {
+        auto it = temp->object_data.methods.find(node.getMethodName());
+        if (it != temp->object_data.methods.end()) {
+            method_type = it->second;
+            break;
+        }
+        temp = temp->object_data.parent;
+    }
+
+    if (!method_type) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico:  El tipo '" + 
+                  object_type->name + "' no tiene método '" + node.getMethodName() + "'";
+        return;
+    }
+
+    // Verificar argumentos
+    if (node.arguments.size() != method_type->parameter_types.size()) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Número incorrecto de argumentos para '" + 
+                  node.getMethodName() + "'";
+        return;
+    }
+
+    for (size_t i = 0; i < node.arguments.size(); i++) {
+        node.arguments[i]->accept(*this);
+        if (errorFlag) return;
+        
+        if (!lastType->is_subtype_of(method_type->parameter_types[i])) {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: Argumento " + 
+                      std::to_string(i+1) + " incompatible para '" + node.getMethodName() + "'";
+            return;
+        }
+    }
+
+    lastType = method_type->return_type;
 }
     

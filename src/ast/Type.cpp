@@ -8,11 +8,14 @@ std::shared_ptr<Type> Type::create_primitive(const std::string& name) {
     return type;
 }
 
-std::shared_ptr<Type> Type::create_object(const std::string& name, Type* parent = nullptr) {
+std::shared_ptr<Type> Type::create_object(const std::string& name, const std::vector<std::string> arguments, Type* parent = nullptr) {
     auto type = std::make_shared<Type>();
     type->kind = Kind::OBJECT;
     type->name = name;
     type->object_data.parent = parent;
+
+    for (auto arg : arguments)
+        type->object_data.constructor[arg] = nullptr;
     return type;
 }
 

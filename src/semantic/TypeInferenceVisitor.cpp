@@ -12,6 +12,13 @@ void TypeInferenceVisitor::putTypeOnVariables(ASTNode* node, Type* type){
         {
             if (info->type == nullptr)
                 info->type = type;
+            else if((info->type->is_primitive() || type->is_primitive()) && info->type != type)
+            {
+                errorFlag = true;
+                errorMsg = "[Line " + std::to_string(var->line) + "] Error semántico: no se pudo inferir el tipo de la varaible '" + var->name + 
+                "'. Tipo esperado: '" + Type::TypeToString(info->type) + "'. Tipo inferido: '" + Type::TypeToString(type) + ".\n";
+
+            }
             else if(info->type != ctx.object_type)
                 info->type = ctx.type_registry.findLowestCommonAncestor(info->type, type);
         }
@@ -135,14 +142,11 @@ void TypeInferenceVisitor::visit(LetInNode& node) {
         if(errorFlag)
             return;
 
-        if(VariableNode* var = dynamic_cast<VariableNode*>(pair.second))
-        {
-            if(var->declared_type != "")
-                lastType = ctx.type_registry.get_type(var->declared_type);
-            
-            SymbolInfo* info = ctx.currentScope()->lookup(pair.first->name);
-            info->type = lastType;
-        }
+        if(pair.first->declared_type != "")
+            lastType = ctx.type_registry.get_type(pair.first->declared_type);
+        
+        SymbolInfo* info = ctx.currentScope()->lookup(pair.first->name);
+        info->type = lastType;
     }
         
     node.block->accept(*this);
@@ -156,22 +160,12 @@ void TypeInferenceVisitor::visit(FunctionNode& node) {
     
     for (auto& arg: node.args)
     {
-        SymbolInfo* info = ctx.currentScope()->lookup(arg->name);
-        if(info->type == nullptr)
-        {
-            errorFlag = true;
-            errorMsg = "[Line " + std::to_string(arg->line) + "] Error semántico: no fue posible inferir el tipo del argumento '" + arg->name + "'.\n";
+        arg->accept(*this);
+        if(errorFlag)
             return;
-        }
     }
 
     FunctionInfo* info = ctx.lookupFunction(node.name);
-
-    if(node.declared_type != "")
-    {
-        lastType = ctx.type_registry.get_type(node.declared_type);
-        info->returnType = lastType;
-    }
 
     if(lastType == nullptr)
     {
@@ -179,6 +173,13 @@ void TypeInferenceVisitor::visit(FunctionNode& node) {
         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: no fue posible inferir el tipo de la funicon '" + node.name + "'.\n";
         return;
     }
+    
+    if(node.declared_type != "")
+    {
+        lastType = ctx.type_registry.get_type(node.declared_type);
+    }
+
+    info->returnType = lastType;
     
     ctx.popScope();
 }
@@ -324,10 +325,10 @@ void TypeInferenceVisitor::visit(InheritsNode& node){
 }
 
 void TypeInferenceVisitor::visit(AttributeNode& node){
-    if (node.initializer) {
-        node.initializer->accept(*this);
-        if (errorFlag) return;
-    }
+    
+    node.initializer->accept(*this);
+    if (errorFlag) 
+        return;
 
     if (!node.declared_type.empty())
     {
@@ -341,9 +342,9 @@ void TypeInferenceVisitor::visit(AttributeNode& node){
         lastType = declared;
     }
 
-    auto attrs_info = get_current_type()->object_data.attributes;
+    // auto attrs_info = get_current_type()->object_data.attributes;
 
-    attrs_info[node.getName()] = lastType;
+    // attrs_info[node.getName()] = lastType;
 }
 
 void TypeInferenceVisitor::visit(MethodNode& node){
@@ -351,23 +352,27 @@ void TypeInferenceVisitor::visit(MethodNode& node){
     std::string method_full_name = get_current_type()->name + "." + node.getName();
 
     FunctionInfo* func = ctx.lookupFunction(method_full_name);
+    if (!func) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Método no registrado: " + method_full_name;
+        return;
+    }
     
     func->node->accept(*this);
+    if(errorFlag)
+        return;
 
     ctx.pushScope(func->node->scope);
     
     auto method_info = get_current_type()->object_data.methods[node.getName()];
     
-    size_t i = 0;
     for (auto& arg: func->node->args)
     {
-        SymbolInfo* info = ctx.currentScope()->lookup(arg->name);
-        method_info->parameter_types.at(i) = info->type;
-        
-        i++;
-    }
+        arg->accept(*this);
+        if(errorFlag)
+            return;
 
-    method_info->return_type = func->returnType;
+    }
 
     ctx.popScope();
 }
@@ -407,7 +412,7 @@ void TypeInferenceVisitor::visit(BaseNode& node){
     Type* current = get_current_type();
     if (!current || !current->object_data.parent) {
         errorFlag = true;
-        errorMsg = "[Line " + std::to_string(node.line) + "] Error: 'base' inválido en este contexto";
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: 'base' inválido en este contexto";
         return;
     }
     
@@ -422,20 +427,35 @@ void TypeInferenceVisitor::visit(BaseNode& node){
     
     lastType = current->object_data.parent->object_data.methods[ctx.currentScope()->functionName]->return_type;
 }
-
-void TypeInferenceVisitor::visit(MethodCallNode& node){
-
+    
+void TypeInferenceVisitor::visit(MethodCallNode& node) {
     node.object->accept(*this);
-    if (errorFlag) 
-            return;
-
-    for (auto arg : node.arguments) {
-        arg->accept(*this);
-        if (errorFlag) 
-            return;
+    if (errorFlag) return;
+    
+    Type* object_type = lastType;
+    if (!object_type || object_type->is_primitive()) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] No se puede llamar métodos en tipos primitivos";
+        return;
     }
 
-    lastType = get_current_type()->object_data.methods[node.getMethodName()]->return_type;
+    // Buscar el método en la jerarquía de tipos
+    Type* current = object_type;
+    FunctionType* method_type = nullptr;
+    while (current != nullptr) {
+        auto it = current->object_data.methods.find(node.getMethodName());
+        if (it != current->object_data.methods.end()) {
+            method_type = it->second;
+            break;
+        }
+        current = current->object_data.parent;
+    }
 
+    if (!method_type) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] El tipo '" + object_type->name + "' no tiene método '" + node.getMethodName() + "'";
+        return;
+    }
+
+    lastType = method_type->return_type;
 }
-    

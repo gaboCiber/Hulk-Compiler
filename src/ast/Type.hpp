@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <map>
 #include <memory>
 
 class Type;
@@ -25,14 +26,15 @@ public:
     // Solo para tipos objeto
     struct {
         Type* parent = nullptr; // Herencia (Object si es nullptr)
-        std::unordered_map<std::string, Type*> attributes;
+        std::unordered_map<std::string, Type*> constructor;
+        std::map<std::string, Type*> attributes;
         std::unordered_map<std::string, FunctionType*> methods;
     } object_data;
 
 
     // Constructores
     static std::shared_ptr<Type> create_primitive(const std::string& name);
-    static std::shared_ptr<Type> create_object(const std::string& name, Type* parent = nullptr) ;
+    static std::shared_ptr<Type> create_object(const std::string& name, const std::vector<std::string> arguments, Type* parent = nullptr) ;
     
     // Helpers
     bool is_primitive() const;

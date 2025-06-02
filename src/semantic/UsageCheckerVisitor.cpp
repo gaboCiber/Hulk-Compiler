@@ -193,6 +193,14 @@ void UsageCheckerVisitor::visit(InheritsNode& node){
     }
 
     Type* type = ctx.type_registry.get_type(node.parent_type);
+
+    if(type->is_primitive())
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: no se puede heredar del tipo primitivo '" + node.parent_type + "' .\n";
+        return;
+    }
+
     Type* current = get_current_type();
 
     if (type->is_subtype_of(current))
@@ -358,5 +366,53 @@ void UsageCheckerVisitor::visit(MethodCallNode& node){
         return;
     }
     
+}
+
+void TypeInferenceVisitor::visit(MethodCallNode& node) {
+    node.object->accept(*this);
+    if (errorFlag) return;
+    
+    Type* object_type = lastType;
+    if (!object_type || object_type->is_primitive()) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] No se puede llamar métodos en tipos primitivos";
+        return;
+    }
+
+    // Buscar el método en la jerarquía de tipos
+    Type* current = object_type;
+    FunctionType* method_type = nullptr;
+    while (current != nullptr) {
+        auto it = current->object_data.methods.find(node.getMethodName());
+        if (it != current->object_data.methods.end()) {
+            method_type = it->second;
+            break;
+        }
+        current = current->object_data.parent;
+    }
+
+    if (!method_type) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] El tipo '" + 
+                  object_type->name + "' no tiene método '" + node.getMethodName() + "'";
+        return;
+    }
+
+    // Procesar argumentos
+    if (node.arguments.size() != method_type->parameter_types.size()) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Número incorrecto de argumentos para '" + 
+                  node.getMethodName() + "'. Esperados: " + std::to_string(method_type->parameter_types.size()) + 
+                  ", recibidos: " + std::to_string(node.arguments.size());
+        return;
+    }
+
+    for (size_t i = 0; i < node.arguments.size(); i++) {
+        node.arguments[i]->accept(*this);
+        if (errorFlag) return;
+        // La compatibilidad de tipos se verificará en el TypeChecker
+    }
+
+    lastType = method_type->return_type;
 }
     

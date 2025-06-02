@@ -3,6 +3,7 @@
 #include "ast/Visitor.hpp"
 #include "semantic/Context.hpp"
 #include <string>
+#include <stack>
 
 class TypeCheckerVisitor : public Visitor {
 public:
@@ -47,4 +48,20 @@ private:
     Type* lastType;
     bool errorFlag = false;
     std::string errorMsg;
+
+    std::stack<Type*> current_type_stack;
+    
+    void push_current_type(Type* type) {
+        current_type_stack.push(type);
+    }
+    
+    void pop_current_type() {
+        if (!current_type_stack.empty()) {
+            current_type_stack.pop();
+        }
+    }
+    
+    Type* get_current_type() const {
+        return current_type_stack.empty() ? nullptr : current_type_stack.top();
+    }
 };

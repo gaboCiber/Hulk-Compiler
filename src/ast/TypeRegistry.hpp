@@ -9,7 +9,7 @@ public:
     TypeRegistry();
 
     // Registra un tipo definido por el usuario
-    std::string register_user_type(const std::string& name, const std::string& parent_name = "Object");
+    std::string register_user_type(const std::string& name, const std::vector<std::string> arguments, const std::string& parent_name = "Object");
 
     // Registra un atributo en un tipo
     void register_attribute(const std::string& type_name, const std::string& attr_name, Type* attr_type);

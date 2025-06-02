@@ -26,6 +26,7 @@ public:
     SymbolInfo* localLookup(const std::string& name); // búsqueda solo en el scope actual
     void define(const std::string& name, ASTNode* value); // define variable
     void print(int indent = 0) const;
+    int getNumberOfSymbols(){return symbols.size();}
 
 private:
     std::unordered_map<std::string, SymbolInfo> symbols;

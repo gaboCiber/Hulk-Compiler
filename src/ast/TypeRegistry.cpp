@@ -6,14 +6,14 @@
 
 TypeRegistry::TypeRegistry() {
     // Registra tipos primitivos (sellados)
-    types_["Object"] = Type::create_object("Object");
+    types_["Object"] = Type::create_object("Object", {});
     types_["Number"] = Type::create_primitive("Number");
     types_["String"] = Type::create_primitive("String");
     types_["Boolean"] = Type::create_primitive("Boolean");
 }
 
 // Registra un tipo definido por el usuario
-std::string TypeRegistry::register_user_type(const std::string& name, const std::string& parent_name = "Object") {
+std::string TypeRegistry::register_user_type(const std::string& name, const std::vector<std::string> arguments, const std::string& parent_name = "Object") {
     
     if (is_sealed(parent_name)) {
         return "No se puede heredar del tipo sellado ' " + parent_name + " '.";
@@ -25,7 +25,7 @@ std::string TypeRegistry::register_user_type(const std::string& name, const std:
     }
 
     Type* parent = get_type(parent_name);
-    types_[name] = Type::create_object(name, parent);
+    types_[name] = Type::create_object(name, arguments, parent);
 
     return "";
 }
