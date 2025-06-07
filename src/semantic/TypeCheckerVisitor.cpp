@@ -641,5 +641,6 @@ void TypeCheckerVisitor::visit(MethodCallNode& node) {
     }
 
     lastType = method_type->return_type;
+    node.object_returnType = lastType;
 }
     

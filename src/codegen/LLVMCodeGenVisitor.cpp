@@ -186,6 +186,39 @@ void LLVMCodeGenVisitor::visit(BinOpNode& node) {
             builder.CreateStore(rhs, info->llvmValue);
             result = rhs;
         } 
+        else if (MemberAccessNode* member = dynamic_cast<MemberAccessNode*>(node.left)) {
+            
+            member->accept(*this); // Esto nos da el puntero al campo
+            builder.CreateStore(rhs, result); // Almacenar el valor
+            result = rhs;
+            
+            // // Asignación a un miembro de un objeto
+            // member->object->accept(*this);
+            // llvm::Value* objectPtr = result;
+
+            // // Obtener el tipo del objeto
+            // llvm::Type* objectType = objectPtr->getType()->getPointerElementType();
+            // llvm::StructType* structType = llvm::cast<llvm::StructType>(objectType);
+
+            // // Obtener el índice del miembro
+            // int memberIndex = -1;
+            // for (unsigned i = 0; i < structType->getNumElements(); ++i) {
+            //     if (structType->getElementName(i) == member->member_name) {
+            //         memberIndex = i;
+            //         break;
+            //     }
+            // }
+
+            // if (memberIndex == -1) {
+            //     std::cerr << "[Line " << member->line << "] Error: miembro '" << member->member_name << "' no encontrado en tipo.\n";
+            //     return;
+            // }
+
+            // // Crear la dirección del miembro
+            // llvm::Value* memberPtr = builder.CreateStructGEP(objectPtr, memberIndex, "member_ptr");
+            // builder.CreateStore(rhs, memberPtr);
+            // result = rhs;
+        }
     }
 
 
@@ -594,8 +627,9 @@ void LLVMCodeGenVisitor::visit(TypeMember& node){
 }
 
 void LLVMCodeGenVisitor::visit(TypeNode& node){
-    
-    currentType = ctx.type_registry.get_type(node.name);
+        
+    push_current_type(ctx.type_registry.get_type(node.name));
+
     types_scope[node.name] = node.scope;
     
     for(auto n: *node.type_args)
@@ -608,14 +642,14 @@ void LLVMCodeGenVisitor::visit(TypeNode& node){
     }
     
     // Registrar la estructura del tipo
-    currentType->llvm_type = defineTypeStruct(currentType);
+    get_current_type()->llvm_type = defineTypeStruct(get_current_type());
     
     // Procesar todos los miembros del tipo
     for (auto member : node.members) {
         member->accept(*this);
     }
 
-    currentType = nullptr;
+    pop_current_type();
 }
 
 llvm::Type* LLVMCodeGenVisitor::defineTypeStruct(Type* type) {
@@ -643,15 +677,71 @@ llvm::Type* LLVMCodeGenVisitor::defineTypeStruct(Type* type) {
 }
 
 void LLVMCodeGenVisitor::visit(InheritsNode& node){
-    types_inherits_args[currentType->name] = *node.parent_args;
+    types_inherits_args[get_current_type()->name] = *node.parent_args;
 }
 
 void LLVMCodeGenVisitor::visit(AttributeNode& node){
-    types_init_attr[TypeAttrKey(currentType->name, node.getName())] = node.initializer;
+    types_init_attr[TypeAttrKey(get_current_type()->name, node.getName())] = node.initializer;
 }
 
-void LLVMCodeGenVisitor::visit(MethodNode& node){
+void LLVMCodeGenVisitor::visit(MethodNode& node) {
+    // Nombre completo del método: Tipo.metodo
+    std::string methodFullName = get_current_type()->name + "." + node.getName();
+    
+    // Usar la misma lógica que FunctionNode
+    FunctionInfo* info = ctx.lookupFunction(methodFullName);
+    Scope* nodeScope = types_scope[get_current_type()->name];
+    
+    // Preparar tipos de parámetros (args)
+    std::vector<llvm::Type*> paramTypes;
+    
+    for (VariableNode* arg : *node.parameters) {
+        SymbolInfo* argInfo = nodeScope->lookup(arg->name);
+        paramTypes.push_back(argInfo->type->llvm_type);
+    }
 
+    // Crear función
+    if(!info->returnType->llvm_type)
+        info->returnType->llvm_type = defineTypeStruct(info->returnType);
+
+    llvm::FunctionType* funcType = llvm::FunctionType::get(
+        info->returnType->llvm_type,
+        paramTypes,
+        false
+    );
+
+    llvm::Function* func = llvm::Function::Create(
+        funcType,
+        llvm::Function::ExternalLinkage,
+        methodFullName,
+        module.get()
+    );
+
+    // Cuerpo de la función
+    llvm::BasicBlock* entry = llvm::BasicBlock::Create(context, "entry", func);
+    builder.SetInsertPoint(entry);
+
+    ctx.pushScope(nodeScope);  
+
+    // Mapear argumentos (self + parámetros)
+    unsigned i = 0;
+    for (auto& llvmArg : func->args()) {
+        std::string argName =  node.parameters->at(i)->name;        llvmArg.setName(argName);
+
+        SymbolInfo* argInfo = nodeScope->lookup(argName);
+        llvm::Type* llvmTy = argInfo->type->llvm_type;
+
+        llvm::AllocaInst* alloca = builder.CreateAlloca(llvmTy, nullptr, argName);
+        builder.CreateStore(&llvmArg, alloca);
+        argInfo->llvmValue = alloca;
+
+        i++;
+    }
+
+    // Generar cuerpo - el último valor será el retorno
+    node.body->accept(*this);
+    builder.CreateRet(result);
+    ctx.popScope();
 }
 
 void LLVMCodeGenVisitor::defineTypeContructorVariables(Type* type, std::vector<ASTNode*> arguments){
@@ -736,19 +826,112 @@ void LLVMCodeGenVisitor::visit(NewNode& node) {
     pop_current_type();
 }
 
-void LLVMCodeGenVisitor::visit(MemberAccessNode& node){
+void LLVMCodeGenVisitor::visit(MemberAccessNode& node) {
+    
+    if (dynamic_cast<SelfNode*>(node.object)) {
+            
+        // Obtener tipo del objeto (self)
+        Type* objectType = get_current_type();
+        
+        //Buscar el atributo en la jerarquía de tipos
+        int fieldIndex = 0;
+        bool found = false;
+        Type* current = objectType;
+        
 
+        while (current && !found) {
+            for (const auto& attr : current->object_data.attributes) {
+                if (attr.first == node.member_name) {
+                    found = true;
+                    break;
+                }
+                fieldIndex++;
+            }
+            if (!found) {
+                current = current->object_data.parent;
+            }
+        }
+        
+        
+        // Obtener puntero al campo
+        llvm::StructType* structTy = llvm::cast<llvm::StructType>(objectType->llvm_type);
+        llvm::Value* fieldPtr = builder.CreateStructGEP(structTy, types_attr_values[TypeAttrKey(objectType->name, node.member_name)], fieldIndex, node.member_name);
+        
+        // Cargar el valor
+        result = builder.CreateLoad(fieldPtr->getType()->getPointerElementType(), fieldPtr);
+
+    }
 }
 
-void LLVMCodeGenVisitor::visit(SelfNode& node){
-
+void LLVMCodeGenVisitor::visit(SelfNode& node) {   
+    
 }
 
-void LLVMCodeGenVisitor::visit(BaseNode& node){
-
+void LLVMCodeGenVisitor::visit(BaseNode& node) {
+    // 1. Obtener el método actual
+    llvm::Function* currentFunc = builder.GetInsertBlock()->getParent();
+    std::string currentMethodName = currentFunc->getName().split('.').second.str();
+    
+    // 2. Buscar en la jerarquía de padres
+    Type* parentType = get_current_type()->object_data.parent;
+    while (parentType) {
+        // Buscar el método en el padre
+        auto it = parentType->object_data.methods.find(currentMethodName);
+        if (it != parentType->object_data.methods.end()) {
+            // 3. Preparar argumentos (args)
+            std::vector<llvm::Value*> args;
+            
+            // Argumentos del nodo base (si los hay)
+            if (node.arguments) {
+                for (auto arg : *node.arguments) {
+                    arg->accept(*this);
+                    args.push_back(result);
+                }
+            }
+            
+            // 4. Llamar al método del padre
+            std::string parentMethodName = parentType->name + "." + currentMethodName;
+            llvm::Function* parentFunc = module->getFunction(parentMethodName);
+            result = builder.CreateCall(parentFunc, args);
+            return;
+        }
+        parentType = parentType->object_data.parent;
+    }
+    
 }
 
-void LLVMCodeGenVisitor::visit(MethodCallNode& node){
-
+void LLVMCodeGenVisitor::visit(MethodCallNode& node) {
+    // Evaluar el objeto
+    node.object->accept(*this);
+    llvm::Value* object = result;
+    Type* objectType = node.object_returnType;
+    
+    // Buscar el método en la jerarquía
+    FunctionType* methodType = nullptr;
+    Type* current = objectType;
+    while (current && !methodType) {
+        auto it = current->object_data.methods.find(node.getMethodName());
+        if (it != current->object_data.methods.end()) {
+            methodType = it->second;
+        }
+        current = current->object_data.parent;
+    }
+    
+    
+    // Preparar argumentos
+    std::vector<llvm::Value*> args;
+    args.push_back(object); // this/self
+    
+    for (auto arg : node.arguments) {
+        arg->accept(*this);
+        args.push_back(result);
+    }
+    
+    // Buscar la función LLVM
+    std::string methodFullName = current->name + "." + node.getMethodName();
+    llvm::Function* func = module->getFunction(methodFullName);
+    
+    // Crear la llamada
+    result = builder.CreateCall(func, args, "methodcall");
 }
     

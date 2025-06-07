@@ -301,6 +301,7 @@ public:
 
     std::vector<ASTNode*> arguments;
     ASTNode* object;
+    Type* object_returnType = nullptr;
 
 
     MethodCallNode(ASTNode* obj, 

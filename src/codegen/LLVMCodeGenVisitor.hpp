@@ -12,6 +12,7 @@
 #include <string>
 #include <unordered_map>
 #include <stack>
+#include <vector>
 #include <memory>  // para std::unique_ptr
 
 // Definir constantes para los tipos
@@ -28,7 +29,7 @@ struct TypeAttrKey {
     
     TypeAttrKey(const std::string& type, const std::string& attr)
         : typeName(type), attrName(attr) {}
-        
+
     bool operator==(const TypeAttrKey& other) const {
         return typeName == other.typeName && attrName == other.attrName;
     }
@@ -102,8 +103,6 @@ private:
     
     
     void defineTypeContructorVariables(Type* type, std::vector<ASTNode*> arguments);
-
-    Type* currentType = nullptr;
 
     std::stack<Type*> current_type_stack;
     
