@@ -42,8 +42,8 @@ private:
 
     std::stack<Type*> current_type_stack;
     
-    void push_current_type(const std::string& type_name) {
-        current_type_stack.push(ctx.type_registry.get_type(type_name));
+    void push_current_type(Type* type) {
+        current_type_stack.push(type);
     }
     
     void pop_current_type() {

@@ -43,9 +43,6 @@ namespace std {
     };
 }
 
-// Luego usar:
-std::unordered_map<TypeAttrKey, ASTNode*> types_constructor_args;
-
 
 class LLVMCodeGenVisitor : public Visitor {
 public:

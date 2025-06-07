@@ -169,21 +169,21 @@ expr_list:
 assingments:
     ID ASSIGNM expr {
         auto* list = new std::vector<std::pair<VariableNode*, ASTNode*>>();
-        list->emplace_back(new VariableNode($1, yylineno), $3);
+        list->push_back(std::make_pair( new VariableNode($1, yylineno), $3));
         $$ = list;
     }
   | assingments COMA ID ASSIGNM expr {
-        $1->emplace_back(new VariableNode($3, yylineno), $5);
+        $1->push_back(std::make_pair( new VariableNode($3, yylineno),$5 ));
         $$ = $1;
     }
 
   | ID DOUBLE_DOT ID ASSIGNM expr {
         auto* list = new std::vector<std::pair<VariableNode*, ASTNode*>>();
-        list->emplace_back(new VariableNode($1, yylineno), $3);
+        list->push_back(std::make_pair( new VariableNode($1, yylineno, $3), $5));
         $$ = list;
     }
   | assingments COMA ID DOUBLE_DOT ID ASSIGNM expr {
-        $1->emplace_back(new VariableNode($3, yylineno), $5);
+        $1->push_back(std::make_pair( new VariableNode($3, yylineno, $5), $7 ));
         $$ = $1;
     }
   ;
@@ -237,29 +237,30 @@ inherits_clause:
 type_body:
     /* vacío */ { $$ = new std::vector<TypeMember*>(); }
     | type_body attribute SEMICOLON { $1->push_back($2); $$ = $1; }
-    | type_body method SEMICOLON { $1->push_back($2); $$ = $1; };
+    | type_body method SEMICOLON { $1->push_back($2); $$ = $1; }
+  ;
 
 attribute:
-    ID DOUBLE_DOT ID ASSIGNM expr { $$ = new AttributeNode($1, $5, yylineno, $3); };
+    ID DOUBLE_DOT ID ASSIGNM expr { $$ = new AttributeNode($1, $5, yylineno, $3); }
   
-  | ID ASSIGNM expr { $$ = new AttributeNode($1, $3, yylineno); };
-  
-    
+  | ID ASSIGNM expr { $$ = new AttributeNode($1, $3, yylineno); }
+  ;
+     
 
 method:
     ID LPAREN arguments RPAREN LAMBDA expr {
         BlockNode* block = new BlockNode();
         block->push_back($6);
-        $$ = new MethodNode($1, $3, *block, yylineno);
+        $$ = new MethodNode($1, $3, block, yylineno, "");
     }
   | ID LPAREN arguments RPAREN block_lines {
-        $$ = new MethodNode($1, $3, $5, yylineno);
+        $$ = new MethodNode($1, $3, $5, yylineno, "");
     }
   
   | ID DOUBLE_DOT ID LPAREN arguments RPAREN LAMBDA expr {
         BlockNode* block = new BlockNode();
         block->push_back($8);
-        $$ = new MethodNode($1, $5, *block, yylineno, $3);
+        $$ = new MethodNode($1, $5, block, yylineno, $3);
     }
   | ID DOUBLE_DOT ID LPAREN arguments RPAREN block_lines {
         $$ = new MethodNode($1, $5, $7, yylineno, $3);

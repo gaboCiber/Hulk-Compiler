@@ -13,7 +13,7 @@ TypeRegistry::TypeRegistry() {
 }
 
 // Registra un tipo definido por el usuario
-std::string TypeRegistry::register_user_type(const std::string& name, const std::vector<std::string> arguments, const std::string& parent_name = "Object") {
+std::string TypeRegistry::register_user_type(const std::string& name, const std::vector<std::string> arguments, const std::string& parent_name) {
     
     if (is_sealed(parent_name)) {
         return "No se puede heredar del tipo sellado ' " + parent_name + " '.";
@@ -25,6 +25,11 @@ std::string TypeRegistry::register_user_type(const std::string& name, const std:
     }
 
     Type* parent = get_type(parent_name);
+    
+    if (!parent) {
+        return "El tipo padre ' " + parent_name + " ' no existe.";
+    }
+
     types_[name] = Type::create_object(name, arguments, parent);
 
     return "";
@@ -50,7 +55,7 @@ void TypeRegistry::register_method(const std::string& type_name,
 Type* TypeRegistry::get_type(const std::string& name) const {
     auto it = types_.find(name);
     if (it == types_.end()) {
-        throw std::runtime_error("Type not found: " + name);
+        return nullptr;
     }
     return it->second.get();
 }

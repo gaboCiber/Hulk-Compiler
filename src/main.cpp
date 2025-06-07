@@ -17,34 +17,34 @@ int main() {
         std::cout << "✅ Análisis sintáctico exitoso. AST:\n";
         root->print();
 
-        // Context ctx;
+        Context ctx;
 
-        // // Análisis semántico completo
-        // if (!Checker::runSemanticAnalysis(root, ctx)) {
-        //     delete root;
-        //     return 1;
-        // }
+        // Análisis semántico completo
+        if (!Checker::runSemanticAnalysis(root, ctx)) {
+            delete root;
+            return 1;
+        }
         
-        // LLVMCodeGenVisitor codegen("HulkModule", ctx);
-        // root->accept(codegen);
+        LLVMCodeGenVisitor codegen("HulkModule", ctx);
+        root->accept(codegen);
 
-        // // Añadir retorno
-        // //codegen.builder.CreateRet(llvm::ConstantInt::get(codegen.builder.getInt32Ty(), 0));
-        // //codegen.builder.CreateRet(codegen.result);
+        // Añadir retorno
+        //codegen.builder.CreateRet(llvm::ConstantInt::get(codegen.builder.getInt32Ty(), 0));
+        //codegen.builder.CreateRet(codegen.result);
 
-        // // Imprimir en consola
-        // std::cout << "\n🔧 Código LLVM IR generado:\n";
-        // codegen.getModule()->print(llvm::outs(), nullptr);
+        // Imprimir en consola
+        std::cout << "\n🔧 Código LLVM IR generado:\n";
+        codegen.getModule()->print(llvm::outs(), nullptr);
 
-        // // Guardar en archivo .ll
-        // std::error_code EC;
-        // llvm::raw_fd_ostream outFile("hulk/output.ll", EC, llvm::sys::fs::OF_Text);
-        // if (!EC) {
-        //     codegen.getModule()->print(outFile, nullptr);
-        //     std::cout << "\n💾 IR guardado en hulk/output.ll\n";
-        // } else {
-        //     std::cerr << "❌ No se pudo guardar IR: " << EC.message() << "\n";
-        // }
+        // Guardar en archivo .ll
+        std::error_code EC;
+        llvm::raw_fd_ostream outFile("hulk/output.ll", EC, llvm::sys::fs::OF_Text);
+        if (!EC) {
+            codegen.getModule()->print(outFile, nullptr);
+            std::cout << "\n💾 IR guardado en hulk/output.ll\n";
+        } else {
+            std::cerr << "❌ No se pudo guardar IR: " << EC.message() << "\n";
+        }
     }
 
     delete root;

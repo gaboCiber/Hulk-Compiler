@@ -151,7 +151,15 @@ void UsageCheckerVisitor::visit(TypeMember& node){
 
 void UsageCheckerVisitor::visit(TypeNode& node){
     
-    push_current_type(node.name);
+    if(!ctx.type_registry.has_type(node.name))
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo '" + node.name +  "' no esta definido.\n";
+        return;
+    }
+
+
+    push_current_type(ctx.type_registry.get_type(node.name));
     ctx.pushScope(node.scope);
 
     for (auto arg : *node.type_args){
