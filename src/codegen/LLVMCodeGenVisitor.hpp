@@ -10,6 +10,8 @@
 #include <llvm/IR/Type.h>
 
 #include <string>
+#include <unordered_map>
+#include <stack>
 #include <memory>  // para std::unique_ptr
 
 // Definir constantes para los tipos
@@ -18,6 +20,31 @@ enum HulkType {
     HULK_BOOL = 1,
     HULK_STRING = 2
 };
+
+// En lugar de concatenar strings para los maps
+struct TypeAttrKey {
+    std::string typeName;
+    std::string attrName;
+    
+    TypeAttrKey(const std::string& type, const std::string& attr)
+        : typeName(type), attrName(attr) {}
+        
+    bool operator==(const TypeAttrKey& other) const {
+        return typeName == other.typeName && attrName == other.attrName;
+    }
+};
+
+namespace std {
+    template<> struct hash<TypeAttrKey> {
+        size_t operator()(const TypeAttrKey& k) const {
+            return hash<string>()(k.typeName) ^ hash<string>()(k.attrName);
+        }
+    };
+}
+
+// Luego usar:
+std::unordered_map<TypeAttrKey, ASTNode*> types_constructor_args;
+
 
 class LLVMCodeGenVisitor : public Visitor {
 public:
@@ -30,7 +57,7 @@ public:
     Context& ctx;
 
     LLVMCodeGenVisitor(const std::string& moduleName, Context& c);
-    llvm::Type* llvmType(ASTNode& node,Type t);
+    //llvm::Type* getllvmType(ASTNode& node,Type* t);
 
     void visit(FloatNode& node) override;
     void visit(StringNode& node) override;
@@ -63,5 +90,35 @@ private:
     llvm::Function* getPrintFunctionForType(llvm::Type *type);
     llvm::Function* getBuiltinFunction(const std::string& name, llvm::Type* returnType, const std::vector<llvm::Type*>& argTypes);
     llvm::Value* getTypeCode(llvm::Type* type);
+
+
+    llvm::Type* defineTypeStruct(Type* type);
+    
+    std::unordered_map<TypeAttrKey, ASTNode*> types_init_attr;
+    std::unordered_map<std::string, std::vector<ASTNode*>> types_inherits_args;
+    std::unordered_map<std::string, Scope*> types_scope;
+    std::unordered_map<TypeAttrKey, llvm::Value*> types_attr_values;
+    std::unordered_map<std::string, std::vector<std::string>> types_constructor_names;
+    
+    
+    void defineTypeContructorVariables(Type* type, std::vector<ASTNode*> arguments);
+
+    Type* currentType = nullptr;
+
+    std::stack<Type*> current_type_stack;
+    
+    void push_current_type(Type* type) {
+        current_type_stack.push(type);
+    }
+    
+    void pop_current_type() {
+        if (!current_type_stack.empty()) {
+            current_type_stack.pop();
+        }
+    }
+    
+    Type* get_current_type() const {
+        return current_type_stack.empty() ? nullptr : current_type_stack.top();
+    }
 
 };

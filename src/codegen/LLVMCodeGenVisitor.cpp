@@ -10,30 +10,18 @@
 LLVMCodeGenVisitor::LLVMCodeGenVisitor(const std::string& moduleName, Context& c)
     : builder(context), module(std::make_unique<llvm::Module>(moduleName, context)), result(nullptr), ctx(c)
 {
-    // Nada más aquí. El IR se construye desde ProgramNode
-}
-
-llvm::Type* LLVMCodeGenVisitor::llvmType(ASTNode& node, Type t) {
-    switch (t) {
-        case Type::Float:  
-            return builder.getFloatTy();
-        case Type::Bool:
-           return builder.getInt1Ty();  // bools siguen como floats
-        case Type::String:
-            return builder.getInt8PtrTy();
-        default: 
-            std::cerr << "[Line " << node.line << "] Error: tipo desconocido.\n";
-            exit(1);  // o simplemente: result = nullptr; y maneja eso después
-    }
-
-    return nullptr;
+    ctx.number_type->llvm_type = builder.getFloatTy();
+    ctx.boolean_type->llvm_type = builder.getInt1Ty();
+    ctx.string_type->llvm_type = builder.getInt8PtrTy();
 }
 
 llvm::Value* LLVMCodeGenVisitor::getTypeCode(llvm::Type* type) {
     if (type->isFloatTy()) return builder.getInt32(HULK_FLOAT);
     if (type == builder.getInt1Ty()) return builder.getInt32(HULK_BOOL);
     if (type->isPointerTy()) return builder.getInt32(HULK_STRING);
-    return builder.getInt32(-1); // Tipo desconocido
+    
+    std::cerr << "Error: tipo desconocido.\n";
+    exit(1); 
 }
 
 llvm::Module* LLVMCodeGenVisitor::getModule() const {
@@ -228,7 +216,7 @@ void LLVMCodeGenVisitor::visit(VariableNode& node) {
         }
     }
     else {
-        llvm::Type* varType = llvmType(node, info->type);
+        llvm::Type* varType = info->type->llvm_type;
         result = builder.CreateLoad(varType, info->llvmValue, "load_" + node.name);
     }
 
@@ -257,7 +245,7 @@ void LLVMCodeGenVisitor::visit(LetInNode& node) {
         SymbolInfo* info = local->lookup(var->name);
 
         // Crear alocación en la pila
-        llvm::Type* llvmTy = llvmType(node, info->type);
+        llvm::Type* llvmTy = info->type->llvm_type;
 
         llvm::Value* alloca = builder.CreateAlloca(llvmTy, nullptr, var->name);
         builder.CreateStore(initValue, alloca);
@@ -280,11 +268,11 @@ void LLVMCodeGenVisitor::visit(FunctionNode& node) {
     std::vector<llvm::Type*> argTypes;
     for (VariableNode* arg : node.args) {
         SymbolInfo* argInfo = node.scope->lookup(arg->name);
-        argTypes.push_back(llvmType(node, argInfo->type));
+        argTypes.push_back(argInfo->type->llvm_type);
     }
 
     // Crear tipo de retorno real
-    llvm::Type* retTy = llvmType(node, info->returnType);
+    llvm::Type* retTy = info->returnType->llvm_type;
     llvm::FunctionType* funcType = llvm::FunctionType::get(retTy, argTypes, false);
 
     llvm::Function* func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, node.name, module.get());
@@ -300,7 +288,7 @@ void LLVMCodeGenVisitor::visit(FunctionNode& node) {
         llvmArg.setName(arg->name);
 
         SymbolInfo* argInfo = node.scope->lookup(arg->name);
-        llvm::Type* llvmTy = llvmType(node, argInfo->type);
+        llvm::Type* llvmTy = argInfo->type->llvm_type;
 
         llvm::AllocaInst* alloca = builder.CreateAlloca(llvmTy, nullptr, arg->name);
         builder.CreateStore(&llvmArg, alloca);
@@ -315,7 +303,12 @@ void LLVMCodeGenVisitor::visit(FunctionNode& node) {
 }
 
 void LLVMCodeGenVisitor::visit(ProgramNode& node) {
-    // Primero declarar todas las funciones
+    // Primero registrar todos los tipos
+    for (auto type : node.types)
+        type->accept(*this);
+
+    
+    // Segundo declarar todas las funciones
     for (auto func : node.functions)
         func->accept(*this);
 
@@ -472,7 +465,7 @@ void LLVMCodeGenVisitor::visit(WhileNode& node) {
     llvm::BasicBlock* endBB  = llvm::BasicBlock::Create(context, "while.end");
 
     // Evaluamos tipo para reservar almacenamiento
-    llvm::Type* llvmTy = llvmType(node, node.returnType);
+    llvm::Type* llvmTy = node.returnType->llvm_type;
 
     // Variable temporal para guardar resultado del cuerpo
     llvm::AllocaInst* resultVar = builder.CreateAlloca(llvmTy, nullptr, "while.result");
@@ -519,7 +512,7 @@ void LLVMCodeGenVisitor::visit(WhileNode& node) {
 
 void LLVMCodeGenVisitor::visit(IfNode& node) {
     llvm::Function* func = builder.GetInsertBlock()->getParent();
-    llvm::Type* llvmTy = llvmType(node, node.returnType);
+    llvm::Type* llvmTy = node.returnType->llvm_type;
     
     std::vector<std::pair<llvm::BasicBlock*, llvm::BasicBlock*>> conditionBlocks; // (condBB, thenBB)
     
@@ -597,27 +590,150 @@ void LLVMCodeGenVisitor::visit(IfNode& node) {
 }
 
 void LLVMCodeGenVisitor::visit(TypeMember& node){
-
+    node.accept(*this);
 }
 
 void LLVMCodeGenVisitor::visit(TypeNode& node){
+    
+    currentType = ctx.type_registry.get_type(node.name);
+    types_scope[node.name] = node.scope;
+    
+    for(auto n: *node.type_args)
+    {
+        types_constructor_names[node.name].push_back(n->name);
+    }
 
+    if (node.inherits) {
+        node.inherits->accept(*this);
+    }
+    
+    // Registrar la estructura del tipo
+    currentType->llvm_type = defineTypeStruct(currentType);
+    
+    // Procesar todos los miembros del tipo
+    for (auto member : node.members) {
+        member->accept(*this);
+    }
+
+    currentType = nullptr;
+}
+
+llvm::Type* LLVMCodeGenVisitor::defineTypeStruct(Type* type) {
+    
+    if(type->llvm_type)
+        return type->llvm_type;
+
+
+    // Recorrer la jerarquía de herencia para recolectar todos los atributos
+    std::vector<llvm::Type*> members;
+    Type* current = type;
+    while (current != nullptr) {
+        for (const auto& attr : current->object_data.attributes) {
+            if(!attr.second->llvm_type)
+                attr.second->llvm_type = defineTypeStruct(attr.second);
+            
+            members.push_back(attr.second->llvm_type);
+        }
+        current = current->object_data.parent;
+    }
+    
+    // Crear la estructura LLVM
+    llvm::StructType* structTy = llvm::StructType::create(context, members, type->name);
+    return structTy;
 }
 
 void LLVMCodeGenVisitor::visit(InheritsNode& node){
-
+    types_inherits_args[currentType->name] = *node.parent_args;
 }
 
 void LLVMCodeGenVisitor::visit(AttributeNode& node){
-
+    types_init_attr[TypeAttrKey(currentType->name, node.getName())] = node.initializer;
 }
 
 void LLVMCodeGenVisitor::visit(MethodNode& node){
 
 }
 
-void LLVMCodeGenVisitor::visit(NewNode& node){
+void LLVMCodeGenVisitor::defineTypeContructorVariables(Type* type, std::vector<ASTNode*> arguments){
 
+    ctx.pushScope(types_scope[type->name]);
+
+    size_t i = 0;
+    for(auto arg: arguments)
+    {
+        // Evaluar expresión del argumento
+        arg->accept(*this);
+        llvm::Value* initValue = result;
+
+        if (!initValue) {
+            std::cerr << "[Line " << arg->line << "] Error: no se pudo generar código '.\n";
+            ctx.popScope();
+            return;
+        }
+
+        // Obtener tipo desde contexto (debería estar definido en análisis de tipos)
+        std::string var_name = types_constructor_names[type->name].at(i);
+        SymbolInfo* info = ctx.currentScope()->lookup(var_name);
+
+        // Crear alocación en la pila
+        llvm::Type* llvmTy = info->type->llvm_type;
+
+        llvm::Value* alloca = builder.CreateAlloca(llvmTy, nullptr, var_name);
+        builder.CreateStore(initValue, alloca);
+        
+        //info->value = valueExpr;
+        info->llvmValue = alloca;
+
+        i++;
+    }
+
+    ctx.popScope();
+}
+
+void LLVMCodeGenVisitor::visit(NewNode& node) {
+    Type* type = ctx.type_registry.get_type(node.type_name);
+
+    push_current_type(type);
+
+    // 1. Allocate memory
+    llvm::StructType* structTy = static_cast<llvm::StructType*>(type->llvm_type);
+    llvm::Value* object = builder.CreateAlloca(structTy, nullptr, node.type_name + ".instance");
+    
+    // 2. Process constructor arguments
+    defineTypeContructorVariables(type, *node.arguments);
+
+    // 3. Initialize attributes
+    unsigned fieldIndex = 0;
+    Type* current = type;
+    while (current != nullptr) {
+        for (const auto& attr : current->object_data.attributes) {
+            const std::string& attrName = attr.first;
+            ASTNode* initializer = types_init_attr[TypeAttrKey(current->name, attrName)];
+            
+            llvm::Value* initValue;
+            if (initializer) {
+                initializer->accept(*this);  // Evaluar la expresión de inicialización
+                initValue = result;
+            } 
+            
+            // Store en el campo correspondiente
+            llvm::Value* fieldPtr = builder.CreateStructGEP(structTy, object, fieldIndex, attrName);
+            builder.CreateStore(initValue, fieldPtr);
+
+            types_attr_values[TypeAttrKey(type->name, attrName)] = fieldPtr;
+
+            fieldIndex++;
+        }
+        auto old = current;
+        current = current->object_data.parent;
+
+        if(current)
+            defineTypeContructorVariables(current, types_inherits_args[old->name]);
+    }
+    
+    result = object;
+
+    pop_current_type();
 }
 
 void LLVMCodeGenVisitor::visit(MemberAccessNode& node){

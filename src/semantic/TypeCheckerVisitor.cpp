@@ -357,7 +357,7 @@ void TypeCheckerVisitor::visit(IfNode& node) {
 }
 
 void TypeCheckerVisitor::visit(TypeMember& node){
-    throw std::runtime_error("Se metio en TypeMember");
+    node.accept(*this);
 }
 
 void TypeCheckerVisitor::visit(TypeNode& node){

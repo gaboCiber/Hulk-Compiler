@@ -4,6 +4,8 @@
 #include <unordered_map>
 #include <map>
 #include <memory>
+#include <llvm/IR/Type.h>
+
 
 class Type;
 
@@ -22,6 +24,7 @@ public:
 
     Kind kind;
     std::string name;
+    llvm::Type* llvm_type;
 
     // Solo para tipos objeto
     struct {

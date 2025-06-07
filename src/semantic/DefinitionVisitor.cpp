@@ -121,7 +121,7 @@ void DefinitionVisitor::visit(IfNode& node) {
 }
 
 void DefinitionVisitor::visit(TypeMember& node){
-    throw std::runtime_error("Se metio en TypeMember");
+    node.accept(*this);
 }
 
 void DefinitionVisitor::visit(TypeNode& node){
