@@ -159,9 +159,9 @@ FunctionNode::~FunctionNode() {
 
 void ProgramNode::print(int indent) const {
     std::cout << std::string(indent, ' ') << "Program:\n";
-    
+
     // Imprimir funciones primero
-    for (const auto& func : functions) {
+    for (const auto& func : functions_and_types) {
         func->print(indent + 2);
     }
     
@@ -176,8 +176,9 @@ void ProgramNode::accept(Visitor& visitor) {
 }
 
 ProgramNode::~ProgramNode() {
+
     // Liberar memoria de funciones
-    for (auto func : functions) {
+    for (auto func : functions_and_types) {
         delete func;
     }
     

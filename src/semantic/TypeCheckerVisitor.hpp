@@ -4,6 +4,7 @@
 #include "semantic/Context.hpp"
 #include <string>
 #include <stack>
+#include <iostream>
 
 class TypeCheckerVisitor : public Visitor {
 public:

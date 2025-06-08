@@ -68,9 +68,9 @@ ProgramNode* root = new ProgramNode();
 %nonassoc ASSIGNM DESTRUCTIVE_ASSIGNM LAMBDA 
 %right NOT
 %left AND OR 
+%left CONCAT BCONCAT
 %nonassoc EQUAL NOEQUAL
 %nonassoc GREATER LESS GREATER_THAN LESS_THAN 
-%left CONCAT BCONCAT
 %left PLUS MINUS
 %left TIMES DIV MOD
 %right POW
@@ -88,7 +88,7 @@ toplevel_item:
     expr SEMICOLON        { root->push_statement($1); }
   | block_lines SEMICOLON { root->push_statement($1); }
   | function SEMICOLON    { root->push_func($1); }
-  | type_decl SEMICOLON   { root->push_types($1); }
+  | type_decl SEMICOLON   { root->push_func($1); }
   ;
 
 block_lines:
@@ -257,13 +257,13 @@ method:
         $$ = new MethodNode($1, $3, $5, yylineno, "");
     }
   
-  | ID DOUBLE_DOT ID LPAREN arguments RPAREN LAMBDA expr {
+  | ID LPAREN arguments RPAREN DOUBLE_DOT ID LAMBDA expr {
         BlockNode* block = new BlockNode();
         block->push_back($8);
-        $$ = new MethodNode($1, $5, block, yylineno, $3);
+        $$ = new MethodNode($1, $3, block, yylineno, $6);
     }
-  | ID DOUBLE_DOT ID LPAREN arguments RPAREN block_lines {
-        $$ = new MethodNode($1, $5, $7, yylineno, $3);
+  | ID LPAREN arguments RPAREN DOUBLE_DOT ID block_lines {
+        $$ = new MethodNode($1, $3, $7, yylineno, $6);
     }
     ;
 

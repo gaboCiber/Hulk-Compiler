@@ -26,7 +26,7 @@ void UsageCheckerVisitor::visit(VariableNode& node) {
         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: variable '" + node.name +  "' no definida en este scope.\n";
     }
 
-    if(node.declared_type != "")
+    if(!node.declared_type.empty())
     {
         if(!ctx.type_registry.has_type(node.declared_type))
         {
@@ -65,7 +65,7 @@ void UsageCheckerVisitor::visit(BlockNode& node) {
 
 void UsageCheckerVisitor::visit(FunctionNode& node) {
     
-    if(node.declared_type != "")
+    if(!node.declared_type.empty())
     {
         if(!ctx.type_registry.has_type(node.declared_type))
         {
@@ -89,7 +89,7 @@ void UsageCheckerVisitor::visit(FunctionNode& node) {
 }
 
 void UsageCheckerVisitor::visit(ProgramNode& node) {
-    for (auto stmt : node.functions) {
+    for (auto stmt : node.functions_and_types) {
         stmt->accept(*this);
         if(errorFlag)
             return;
@@ -248,7 +248,7 @@ void UsageCheckerVisitor::visit(AttributeNode& node){
 
 void UsageCheckerVisitor::visit(MethodNode& node){
     
-    if(!ctx.type_registry.has_type(node.declared_type))
+    if(!node.declared_type.empty() && !ctx.type_registry.has_type(node.declared_type))
     {
         errorFlag = true;
         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo '" + node.declared_type +  "' no esta definido.\n";
@@ -301,7 +301,7 @@ void UsageCheckerVisitor::visit(MemberAccessNode& node){
     else
     {
         errorFlag = true;
-        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: los atributos de un tipo son providos. \n'";
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: los atributos de un tipo son privados. \n'";
         return;
     }
     

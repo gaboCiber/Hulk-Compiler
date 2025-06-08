@@ -89,7 +89,7 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
     {
         if (leftT != rightT) {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos del mismo tipo.";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos del mismo tipo, no (" + leftT->name + " y " + rightT->name + "). \n";
             return;
         }
 
@@ -134,7 +134,7 @@ void TypeCheckerVisitor::visit(VariableNode& node) {
     SymbolInfo* info = ctx.currentScope()->lookup(node.name);
 
     if (expected != nullptr) {
-        if(! info->type->is_subtype_of(expected))
+        if(!expected->is_subtype_of(info->type))
         {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferido (" + info->type->name + ") de la variable ' " + node.name + " ' es diferente a su tipo esperado (" + expected->name + ").\n" ;
@@ -184,10 +184,10 @@ void TypeCheckerVisitor::visit(FunctionNode& node) {
 
     FunctionInfo* info = ctx.lookupFunction(node.name);
     
-    if(lastType->is_subtype_of(info->returnType))
+    if(!lastType->is_subtype_of(info->returnType))
     {
         errorFlag = true;
-        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferedo de la función '" + node.name + "' es diferente a su tipo esperado.\n";
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferedo de la función '" + node.name + "' ( " + lastType->name + " ) es diferente a su tipo esperado ( " + info->returnType->name +" ).\n";
         return;
     }
     
@@ -195,7 +195,7 @@ void TypeCheckerVisitor::visit(FunctionNode& node) {
 }
 
 void TypeCheckerVisitor::visit(ProgramNode& node) {
-    for (auto stmt : node.functions) {
+    for (auto stmt : node.functions_and_types) {
         stmt->accept(*this);
         if(errorFlag)
             return;
@@ -244,7 +244,7 @@ void TypeCheckerVisitor::visit(CallFuncNode& node){
 
         if (!actualType->is_subtype_of(expectedInfo->type)) {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error: el argumento '" + expectedArg->name + "' debe ser de tipo '" + expectedInfo->type->name + "' o subtipo";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error: el argumento '" + std::to_string(i+1) + "' de la función ' " + node.functionName + " ' debe ser de tipo ' " + expectedInfo->type->name + " ' o de su subtipo, no de tipo ' " + actualType->name + " ' .\n";
             return;
         }
     }
@@ -273,10 +273,16 @@ void TypeCheckerVisitor::checkBuiltinCall(CallFuncNode& node) {
 
     if (binfo->returnsArgumentType) {
         node.arguments[0]->accept(*this);
-        
+    
         if(errorFlag)
             return;
 
+        if(!lastType->is_primitive())
+        {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el argumento de la función ' " + node.functionName + " ' debe ser de tipo primitivo, no de tipo ' " + lastType->name + " ' .\n";
+            return;    
+        }
     }
     else {
         for (size_t i = 0; i < node.arguments.size(); ++i) {
@@ -354,6 +360,8 @@ void TypeCheckerVisitor::visit(IfNode& node) {
             return;
         }
     }
+
+    lastType = expectedType;
 }
 
 void TypeCheckerVisitor::visit(TypeMember& node){
@@ -453,6 +461,7 @@ void TypeCheckerVisitor::visit(AttributeNode& node) {
     Type* attr_type = declared_type ? declared_type : lastType;
     current_type->object_data.attributes[node.getName()] = attr_type;
     lastType = attr_type;
+    
 }
 
 void TypeCheckerVisitor::visit(MethodNode& node) {
@@ -469,7 +478,7 @@ void TypeCheckerVisitor::visit(MethodNode& node) {
     func_info->node->accept(*this);
     if(errorFlag)
             return;
-
+    
     // Verificar tipo de retorno declarado
     Type* declared_return = node.declared_type.empty() ? nullptr :
                           ctx.type_registry.get_type(node.declared_type);
@@ -477,23 +486,35 @@ void TypeCheckerVisitor::visit(MethodNode& node) {
 
     auto method_info = get_current_type()->object_data.methods[node.getName()];
 
+
     // Procesar cuerpo del método
     ctx.pushScope(func_info->node->scope);
         
     size_t i = 0;
     for (auto& arg: func_info->node->args)
     {
-        Type* declared_arg = ctx.type_registry.get_type(arg->name);
         SymbolInfo* info = ctx.currentScope()->lookup(arg->name);
-        
-        if(!info->type->is_subtype_of(declared_arg))
+
+        if(!info->type)
         {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error: el argumento '" + arg->name + "' debe ser de tipo '" + declared_arg->name + "' o subtipo";
-            return;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error: no se pudo inferir el tipo del argumento '" + arg->name + "' \n"; 
         }
-        
-        method_info->parameter_types.at(i) = declared_arg;
+
+        if(arg->declared_type.empty())
+        {
+            Type* declared_arg = ctx.type_registry.get_type(arg->declared_type);
+    
+            if(!info->type->is_subtype_of(declared_arg))
+            {
+                errorFlag = true;
+                errorMsg = "[Line " + std::to_string(node.line) + "] Error: el argumento '" + arg->name + "' debe ser de tipo '" + declared_arg->name + "' o subtipo";
+                return;
+            }        
+            
+        }
+
+        method_info->parameter_types.at(i) = info->type;  
 
         i++;
     }
@@ -544,10 +565,14 @@ void TypeCheckerVisitor::visit(NewNode& node) {
 
 void TypeCheckerVisitor::visit(MemberAccessNode& node){
     node.object->accept(*this);
-    if (errorFlag) 
-        return;
+    if (errorFlag) return;
 
-    lastType = get_current_type()->object_data.attributes[node.member_name];
+    Type* objectType = lastType;
+    
+    // Verifica que el atributo exista
+    auto& attributes = objectType->object_data.attributes;
+
+    lastType = attributes[node.member_name];
 }
 
 void TypeCheckerVisitor::visit(SelfNode& node){

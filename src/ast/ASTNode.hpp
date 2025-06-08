@@ -113,13 +113,11 @@ public:
 
 class ProgramNode : public ASTNode {
 public:
-    std::vector<FunctionNode*> functions;
-    std::vector<TypeNode*> types;
+    std::vector<ASTNode*> functions_and_types;
     std::vector<ASTNode*> statements;  // Unificamos blocks y lines aquí
     
-    void push_func(FunctionNode* func) { functions.push_back(func); }
+    void push_func(ASTNode* func) { functions_and_types.push_back(func); }
     void push_statement(ASTNode* stmt) { statements.push_back(stmt); }
-    void push_types(TypeNode* ty)      { types.push_back(ty); }
     
     void print(int indent = 0) const override;
     void accept(Visitor& visitor) override;

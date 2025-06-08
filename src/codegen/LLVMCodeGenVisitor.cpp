@@ -336,13 +336,9 @@ void LLVMCodeGenVisitor::visit(FunctionNode& node) {
 }
 
 void LLVMCodeGenVisitor::visit(ProgramNode& node) {
-    // Primero registrar todos los tipos
-    for (auto type : node.types)
-        type->accept(*this);
 
-    
     // Segundo declarar todas las funciones
-    for (auto func : node.functions)
+    for (auto func : node.functions_and_types)
         func->accept(*this);
 
     // Opcional: generar main implícito si hay líneas/bloques fuera de funciones
@@ -433,8 +429,8 @@ llvm::Value* LLVMCodeGenVisitor::generateBuiltinCall(const std::string& name, co
             trueArgs = {builder.CreateFPExt(args[0], builder.getDoubleTy())};
 
 
-        llvm::Value* ret = builder.CreateCall(printFunc, trueArgs, "printtmp");
-        return ret; //args[0];
+        builder.CreateCall(printFunc, trueArgs, "printtmp");
+        return args[0];
     }
     
     // Manejar rand
@@ -565,6 +561,8 @@ void LLVMCodeGenVisitor::visit(IfNode& node) {
 
     // Empezar con el primer bloque condicional
     builder.CreateBr(conditionBlocks[0].first);
+
+    std::vector<llvm::Value*> brachResult;
     
     // Generar código para cada condición
     for (size_t i = 0; i < node.getBranches().size(); ++i) {
@@ -595,28 +593,31 @@ void LLVMCodeGenVisitor::visit(IfNode& node) {
         builder.SetInsertPoint(thenBB);
         bodyExpr->accept(*this);
         builder.CreateBr(mergeBB);
+
+        brachResult.push_back(result);
     }
     
     // Generar ELSE
     builder.SetInsertPoint(elseBB);
     node.getElseBranch()->accept(*this);
     builder.CreateBr(mergeBB);
+
+    brachResult.push_back(result);
     
     // Generar MERGE con PHI node
     builder.SetInsertPoint(mergeBB);
     llvm::PHINode* phi = builder.CreatePHI(llvmTy, node.getBranches().size() + 1, "iftmp");
     
     // Agregar entradas desde los THEN
-    for (size_t i = 0; i < node.getBranches().size(); ++i) {
+    size_t i;
+    for (i = 0; i < node.getBranches().size(); i++) {
         builder.SetInsertPoint(conditionBlocks[i].second);
-        node.getBranches()[i].second->accept(*this);
-        phi->addIncoming(result, conditionBlocks[i].second);
+        phi->addIncoming(brachResult[i], conditionBlocks[i].second);
     }
     
     // Agregar entrada desde ELSE
     builder.SetInsertPoint(elseBB);
-    node.getElseBranch()->accept(*this);
-    phi->addIncoming(result, elseBB);
+    phi->addIncoming(brachResult.at(i), elseBB);
     
     builder.SetInsertPoint(mergeBB);
     result = phi;
@@ -627,16 +628,20 @@ void LLVMCodeGenVisitor::visit(TypeMember& node){
 }
 
 void LLVMCodeGenVisitor::visit(TypeNode& node){
-        
+
+    std::cout<<"Iniciando Tipo "<< node.name<<std::endl;
+
     push_current_type(ctx.type_registry.get_type(node.name));
 
     types_scope[node.name] = node.scope;
     
+    std::cout<<"Procesando argumentos"<<std::endl;
     for(auto n: *node.type_args)
     {
         types_constructor_names[node.name].push_back(n->name);
     }
 
+    std::cout<<"Procesando herencia"<<std::endl;
     if (node.inherits) {
         node.inherits->accept(*this);
     }
@@ -644,12 +649,16 @@ void LLVMCodeGenVisitor::visit(TypeNode& node){
     // Registrar la estructura del tipo
     get_current_type()->llvm_type = defineTypeStruct(get_current_type());
     
+
     // Procesar todos los miembros del tipo
     for (auto member : node.members) {
+        std::cout<<"Visitando miembro " << member->getName() <<std::endl;
         member->accept(*this);
     }
 
     pop_current_type();
+
+    std::cout<<"Finito"<<std::endl;
 }
 
 llvm::Type* LLVMCodeGenVisitor::defineTypeStruct(Type* type) {
@@ -685,6 +694,10 @@ void LLVMCodeGenVisitor::visit(AttributeNode& node){
 }
 
 void LLVMCodeGenVisitor::visit(MethodNode& node) {
+    int j = 0;
+
+    std::cout<<std::to_string(++j)<<std::endl;
+    
     // Nombre completo del método: Tipo.metodo
     std::string methodFullName = get_current_type()->name + "." + node.getName();
     
@@ -694,6 +707,7 @@ void LLVMCodeGenVisitor::visit(MethodNode& node) {
     
     // Preparar tipos de parámetros (args)
     std::vector<llvm::Type*> paramTypes;
+
     
     for (VariableNode* arg : *node.parameters) {
         SymbolInfo* argInfo = nodeScope->lookup(arg->name);
@@ -723,10 +737,15 @@ void LLVMCodeGenVisitor::visit(MethodNode& node) {
 
     ctx.pushScope(nodeScope);  
 
-    // Mapear argumentos (self + parámetros)
+    std::cout<<std::to_string(++j)<<std::endl;
+
+    // Mapear argumentos (parámetros)
     unsigned i = 0;
     for (auto& llvmArg : func->args()) {
-        std::string argName =  node.parameters->at(i)->name;        llvmArg.setName(argName);
+        std::cout<<std::to_string(j) << " " << std::to_string(i)<<std::endl;
+
+        std::string argName = node.parameters->at(i)->name;        
+        llvmArg.setName(argName);
 
         SymbolInfo* argInfo = nodeScope->lookup(argName);
         llvm::Type* llvmTy = argInfo->type->llvm_type;
@@ -738,10 +757,16 @@ void LLVMCodeGenVisitor::visit(MethodNode& node) {
         i++;
     }
 
+    std::cout<<std::to_string(++j)<<std::endl;
+
     // Generar cuerpo - el último valor será el retorno
     node.body->accept(*this);
     builder.CreateRet(result);
+
     ctx.popScope();
+
+    std::cout<<std::to_string(++j)<<std::endl;
+
 }
 
 void LLVMCodeGenVisitor::defineTypeContructorVariables(Type* type, std::vector<ASTNode*> arguments){
@@ -829,7 +854,10 @@ void LLVMCodeGenVisitor::visit(NewNode& node) {
 void LLVMCodeGenVisitor::visit(MemberAccessNode& node) {
     
     if (dynamic_cast<SelfNode*>(node.object)) {
-            
+
+        int k = 10;
+
+        std::cout<<std::to_string(++k)<<std::endl;
         // Obtener tipo del objeto (self)
         Type* objectType = get_current_type();
         
@@ -838,7 +866,7 @@ void LLVMCodeGenVisitor::visit(MemberAccessNode& node) {
         bool found = false;
         Type* current = objectType;
         
-
+        std::cout<<std::to_string(++k)<<std::endl;
         while (current && !found) {
             for (const auto& attr : current->object_data.attributes) {
                 if (attr.first == node.member_name) {
@@ -852,14 +880,15 @@ void LLVMCodeGenVisitor::visit(MemberAccessNode& node) {
             }
         }
         
-        
+        std::cout<<std::to_string(++k)<<std::endl;
+
         // Obtener puntero al campo
         llvm::StructType* structTy = llvm::cast<llvm::StructType>(objectType->llvm_type);
         llvm::Value* fieldPtr = builder.CreateStructGEP(structTy, types_attr_values[TypeAttrKey(objectType->name, node.member_name)], fieldIndex, node.member_name);
         
         // Cargar el valor
         result = builder.CreateLoad(fieldPtr->getType()->getPointerElementType(), fieldPtr);
-
+        std::cout<<std::to_string(++k)<<std::endl;
     }
 }
 

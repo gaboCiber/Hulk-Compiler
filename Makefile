@@ -69,6 +69,9 @@ execute: compile
 	@echo "🚀 Ejecutando output  ..."
 	@./$(OUT_DIR)/output
 
+run:
+	@./$(OUT_DIR)/output
+
 clean:
 	rm -rf $(OUT_DIR)
 	@echo "🧹 Proyecto limpiado."

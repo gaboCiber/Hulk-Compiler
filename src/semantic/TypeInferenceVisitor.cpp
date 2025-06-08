@@ -6,20 +6,21 @@
 TypeInferenceVisitor::TypeInferenceVisitor(Context& context) : ctx(context) {}
 
 void TypeInferenceVisitor::putTypeOnVariables(ASTNode* node, Type* type){
+
     if (VariableNode* var = dynamic_cast<VariableNode*>(node)) {
         SymbolInfo* info = ctx.currentScope()->lookup(var->name);
         if(info)
         {
             if (info->type == nullptr)
                 info->type = type;
-            else if((info->type->is_primitive() || type->is_primitive()) && info->type != type)
+            else if((info->type->is_primitive() || type->is_primitive()) && info->type != type && type != ctx.object_type)
             {
                 errorFlag = true;
                 errorMsg = "[Line " + std::to_string(var->line) + "] Error semántico: no se pudo inferir el tipo de la varaible '" + var->name + 
                 "'. Tipo esperado: '" + Type::TypeToString(info->type) + "'. Tipo inferido: '" + Type::TypeToString(type) + ".\n";
 
             }
-            else if(info->type != ctx.object_type)
+            else if(info->type != ctx.object_type && !info->type->is_primitive())
                 info->type = ctx.type_registry.findLowestCommonAncestor(info->type, type);
         }
     }
@@ -122,10 +123,10 @@ void TypeInferenceVisitor::visit(VariableNode& node) {
     else {
         SymbolInfo* info = ctx.currentScope()->lookup(node.name);
     
-        if (info->type == nullptr) {
-            errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: " + "tipo no inferido para variable '" +  node.name + "' \n" ;
-        }
+        // if (info->type == nullptr) {
+        //     errorFlag = true;
+        //     errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: " + "tipo no inferido para variable '" +  node.name + "' \n" ;
+        // }
     
         lastType = info->type;
     }
@@ -156,8 +157,26 @@ void TypeInferenceVisitor::visit(LetInNode& node) {
 void TypeInferenceVisitor::visit(FunctionNode& node) {
     ctx.pushScope(node.scope);
     
+    for (auto& arg: node.args)
+    {
+        if(!arg->declared_type.empty())
+        {
+            SymbolInfo* info = ctx.currentScope()->lookup(arg->name);
+            putTypeOnVariables(arg, ctx.type_registry.get_type(arg->declared_type));
+        }
+    }
+
     node.block->accept(*this);
     
+    Type* inferedType = lastType;
+    if(inferedType == nullptr)
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: no fue posible inferir el tipo de la función '" + node.name + "'.\n";
+        return;
+    }
+
+
     for (auto& arg: node.args)
     {
         arg->accept(*this);
@@ -166,18 +185,11 @@ void TypeInferenceVisitor::visit(FunctionNode& node) {
     }
 
     FunctionInfo* info = ctx.lookupFunction(node.name);
-
-    if(lastType == nullptr)
-    {
-        errorFlag = true;
-        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: no fue posible inferir el tipo de la funicon '" + node.name + "'.\n";
-        return;
-    }
     
     if(node.declared_type != "")
-    {
         lastType = ctx.type_registry.get_type(node.declared_type);
-    }
+    else
+        lastType = inferedType;
 
     info->returnType = lastType;
     
@@ -185,7 +197,7 @@ void TypeInferenceVisitor::visit(FunctionNode& node) {
 }
 
 void TypeInferenceVisitor::visit(ProgramNode& node) {
-    for (auto stmt : node.functions) {
+    for (auto stmt : node.functions_and_types) {
         stmt->accept(*this);
         if(errorFlag)
             return;
@@ -204,7 +216,6 @@ void TypeInferenceVisitor::visit(CallFuncNode& node){
     size_t i = 0;
     for (auto args : node.arguments) {
         args->accept(*this);
-        
         if(errorFlag)
             return;
 
@@ -217,7 +228,8 @@ void TypeInferenceVisitor::visit(CallFuncNode& node){
         i++;
     } 
 
-    lastType = info->returnType;
+    if(node.functionName != "print")
+        lastType = info->returnType;
     
 }
 
@@ -273,7 +285,7 @@ void TypeInferenceVisitor::visit(IfNode& node) {
 
     // Inferir tipo común
     lastType = branchTypes.empty() ? ctx.object_type : branchTypes[0];
-    for (size_t i = 1; i < branchTypes.size(); ++i) {
+    for (size_t i = 0; i < branchTypes.size(); i++) {
         lastType = ctx.type_registry.findLowestCommonAncestor(lastType, branchTypes[i]);
     }
 
@@ -330,6 +342,8 @@ void TypeInferenceVisitor::visit(AttributeNode& node){
     if (errorFlag) 
         return;
 
+    Type* attributeType = lastType;
+
     if (!node.declared_type.empty())
     {
         Type* declared = ctx.type_registry.get_type(node.declared_type);
@@ -342,9 +356,15 @@ void TypeInferenceVisitor::visit(AttributeNode& node){
         lastType = declared;
     }
 
-    // auto attrs_info = get_current_type()->object_data.attributes;
+    if (!get_current_type()) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + 
+                  "] Error: no hay tipo actual para definir atributos";
+        return;
+    }
 
-    // attrs_info[node.getName()] = lastType;
+    get_current_type()->object_data.attributes[node.getName()] = attributeType;
+    lastType = attributeType;
 }
 
 void TypeInferenceVisitor::visit(MethodNode& node){
@@ -361,6 +381,8 @@ void TypeInferenceVisitor::visit(MethodNode& node){
     func->node->accept(*this);
     if(errorFlag)
         return;
+    
+    Type* inferedReturn = lastType;
 
     ctx.pushScope(func->node->scope);
     
@@ -373,8 +395,11 @@ void TypeInferenceVisitor::visit(MethodNode& node){
             return;
 
     }
+    
 
     ctx.popScope();
+
+    lastType = method_info->return_type ? method_info->return_type : inferedReturn;
 }
 
 void TypeInferenceVisitor::visit(NewNode& node){
@@ -390,12 +415,32 @@ void TypeInferenceVisitor::visit(NewNode& node){
 
 }
 
-void TypeInferenceVisitor::visit(MemberAccessNode& node){
-    node.object->accept(*this);
-    if (errorFlag) 
-        return;
 
-    lastType = get_current_type()->object_data.attributes[node.member_name];
+void TypeInferenceVisitor::visit(MemberAccessNode& node) {
+    node.object->accept(*this);
+    if (errorFlag) return;
+
+    Type* objectType = lastType;
+    
+    if (!objectType) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error: el objeto no es de un tipo válido";
+        return;
+    }
+
+    // Verifica que el atributo exista
+    auto& attributes = objectType->object_data.attributes;
+    if (attributes.find(node.member_name) == attributes.end()) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error: el atributo '" + node.member_name + "' no existe en el tipo '" + objectType->name + "'";
+        return;
+    }
+
+    lastType = attributes[node.member_name];
+    if (!lastType) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error: no se pudo inferir el tipo del atributo '" + node.member_name + "'";
+    }
 }
 
 void TypeInferenceVisitor::visit(SelfNode& node){

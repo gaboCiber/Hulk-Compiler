@@ -64,18 +64,26 @@ void DefinitionVisitor::visit(FunctionNode& node) {
 }
 
 void DefinitionVisitor::visit(ProgramNode& node) {
-    for (auto stmt : node.functions) {
-        
-        if (!ctx.defineFunction(stmt->name, stmt)) {
-            errorFlag = true;
-            errorMsg = "[Line " + std::to_string(stmt->line) + "] Error semántico: la función '" + stmt->name + "' ya fue definida.";
-            return;
-        }
+    for (auto stmt : node.functions_and_types) {
+        if(auto func = static_cast<FunctionNode*>(stmt)){
+            if (!ctx.defineFunction(func->name, func)) {
+                errorFlag = true;
+                errorMsg = "[Line " + std::to_string(stmt->line) + "] Error semántico: la función '" + func->name + "' ya fue definida.";
+                return;
+            }
+
             stmt->accept(*this);
             if(errorFlag)
                 return;
         }
-
+        else if(auto type = static_cast<TypeNode*>(stmt)){
+            type->accept(*this);
+            if(errorFlag)
+                return;
+        }
+        
+    }
+    
     for (auto stmt : node.statements) {
         stmt->accept(*this);
         if(errorFlag)
