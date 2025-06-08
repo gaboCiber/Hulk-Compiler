@@ -84,6 +84,8 @@ public:
     llvm::Module* getModule() const;
 
 private:
+    bool isAssignmentTarget = false;
+
     llvm::Value* generateBuiltinCall(const std::string& name, const std::vector<llvm::Value*>& args);
     llvm::Function* getPrintFunctionForType(llvm::Type *type);
     llvm::Function* getBuiltinFunction(const std::string& name, llvm::Type* returnType, const std::vector<llvm::Type*>& argTypes);
@@ -95,7 +97,6 @@ private:
     std::unordered_map<TypeAttrKey, ASTNode*> types_init_attr;
     std::unordered_map<std::string, std::vector<ASTNode*>> types_inherits_args;
     std::unordered_map<std::string, Scope*> types_scope;
-    std::unordered_map<TypeAttrKey, llvm::Value*> types_attr_values;
     std::unordered_map<std::string, std::vector<std::string>> types_constructor_names;
     
     

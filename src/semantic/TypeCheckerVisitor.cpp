@@ -625,6 +625,7 @@ void TypeCheckerVisitor::visit(MethodCallNode& node) {
     if (errorFlag) return;
     
     Type* object_type = lastType;
+    node.object_returnType = object_type;
 
     // Buscar método en la jerarquía
     FunctionType* method_type = nullptr;
@@ -666,6 +667,6 @@ void TypeCheckerVisitor::visit(MethodCallNode& node) {
     }
 
     lastType = method_type->return_type;
-    node.object_returnType = lastType;
+    //node.object_returnType = lastType;
 }
     

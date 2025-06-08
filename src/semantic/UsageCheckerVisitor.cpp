@@ -356,32 +356,52 @@ void UsageCheckerVisitor::visit(BaseNode& node){
 
 }
 
-void UsageCheckerVisitor::visit(MethodCallNode& node){
+// void UsageCheckerVisitor::visit(MethodCallNode& node){
 
+//     std::cout<<"Calling "<< node.getMethodName() <<std::endl;
+
+//     std::cout<<"1"<<std::endl;
+//     node.object->accept(*this);
+//     if (errorFlag) 
+//             return;
+
+//     std::cout<<"2"<<std::endl;
+//     for (auto arg : node.arguments) {
+//         arg->accept(*this);
+//         if (errorFlag) 
+//             return;
+//     }
+
+//     std::cout<<"3"<<std::endl;
+//     if(get_current_type() == nullptr){
+//         errorFlag = true;
+//         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: la instrucción ' self ' solo puede ser utilizado en una declaración de tipos. \n";
+//     }
+
+//     std::cout<<"4"<<std::endl;
+//     auto methods_info = get_current_type()->object_data.methods;
+
+//     std::cout<<"5"<<std::endl;
+    
+//     if(methods_info.find(node.getMethodName()) == methods_info.end())
+//     {
+//         errorFlag = true;
+//         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo ' " +  get_current_type()->name + "' no posee un método llamado ' " + node.getMethodName() + " ' .\n'";
+//         return;
+//     }
+    
+//     std::cout<<"Calling end "<< node.getMethodName() <<std::endl;
+// }
+
+void UsageCheckerVisitor::visit(MethodCallNode& node) {
+
+    // 1. Evaluar el objeto primero
     node.object->accept(*this);
-    if (errorFlag) 
-            return;
+    if (errorFlag) return;
 
+    // 4. Verificar argumentos
     for (auto arg : node.arguments) {
         arg->accept(*this);
-        if (errorFlag) 
-            return;
+        if (errorFlag) return;
     }
-    
-    if(get_current_type() == nullptr){
-        errorFlag = true;
-        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: la instrucción ' self ' solo puede ser utilizado en una declaración de tipos. \n";
-    }
-
-    auto methods_info = get_current_type()->object_data.methods;
-    
-    if(methods_info.find(node.getMethodName()) == methods_info.end())
-    {
-        errorFlag = true;
-        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo ' " +  get_current_type()->name + "' no posee un método llamado ' " + node.getMethodName() + " ' .\n'";
-        return;
-    }
-    
 }
-
-    
