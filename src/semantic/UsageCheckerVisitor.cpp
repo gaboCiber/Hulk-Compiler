@@ -33,6 +33,8 @@ void UsageCheckerVisitor::visit(VariableNode& node) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo '" + node.declared_type +  "' no esta definido.\n";
         }
+
+        info->type = ctx.type_registry.get_type(node.declared_type);
     }
 }
 

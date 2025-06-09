@@ -48,6 +48,8 @@ private:
     bool errorFlag = false;
     std::string errorMsg;
 
+
+    bool checkVariableType = false;
     std::stack<Type*> current_type_stack;
     
     void push_current_type(const std::string& type_name) {

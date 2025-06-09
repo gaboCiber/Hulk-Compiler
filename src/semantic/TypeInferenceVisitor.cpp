@@ -88,7 +88,10 @@ void TypeInferenceVisitor::visit(BinOpNode& node) {
     else if( node.op == ":="){
         // typeL = leftT;
         // typeR = typeNode = rightT;
-        typeL = typeR = typeNode = rightT; // El lado izquierdo debe adaptarse al derecho
+        if(MemberAccessNode* member = dynamic_cast<MemberAccessNode*>(node.left))
+            typeL = typeR = typeNode = leftT;
+        else
+            typeL = typeR = typeNode = rightT; 
     }
     else if (node.op == "&" || node.op == "|") {
         typeL = typeR = typeNode = ctx.boolean_type;
@@ -123,10 +126,10 @@ void TypeInferenceVisitor::visit(VariableNode& node) {
     else {
         SymbolInfo* info = ctx.currentScope()->lookup(node.name);
     
-        // if (info->type == nullptr) {
-        //     errorFlag = true;
-        //     errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: " + "tipo no inferido para variable '" +  node.name + "' \n" ;
-        // }
+        if (checkVariableType && info->type == nullptr) {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: " + "tipo no inferido para variable '" +  node.name + "' \n" ;
+        }
     
         lastType = info->type;
     }
@@ -169,20 +172,15 @@ void TypeInferenceVisitor::visit(FunctionNode& node) {
     node.block->accept(*this);
     
     Type* inferedType = lastType;
-    if(inferedType == nullptr)
-    {
-        errorFlag = true;
-        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: no fue posible inferir el tipo de la función '" + node.name + "'.\n";
-        return;
-    }
 
-
+    checkVariableType = true;
     for (auto& arg: node.args)
     {
         arg->accept(*this);
         if(errorFlag)
             return;
     }
+    checkVariableType = false;
 
     FunctionInfo* info = ctx.lookupFunction(node.name);
     
@@ -190,6 +188,13 @@ void TypeInferenceVisitor::visit(FunctionNode& node) {
         lastType = ctx.type_registry.get_type(node.declared_type);
     else
         lastType = inferedType;
+
+    if(lastType == nullptr)
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: no fue posible inferir el tipo de la función '" + node.name + "'.\n";
+        return;
+    }
 
     info->returnType = lastType;
     
@@ -303,6 +308,7 @@ void TypeInferenceVisitor::visit(TypeNode& node){
     push_current_type(node.name);
     ctx.pushScope(node.scope);
     
+    
     if(node.inherits != nullptr)
     {
         node.inherits->accept(*this);
@@ -315,11 +321,13 @@ void TypeInferenceVisitor::visit(TypeNode& node){
         if (errorFlag) return;
     }
 
+    checkVariableType = true;
     for (auto arg : *node.type_args){
         arg->accept(*this);
         if(errorFlag)
             return;
     }
+    checkVariableType = false;
     
     pop_current_type();
     ctx.popScope();
@@ -355,6 +363,12 @@ void TypeInferenceVisitor::visit(AttributeNode& node){
 
         lastType = declared;
     }
+    else if(!lastType)
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error: no se pudo inferir el tipo del atributo '" + node.getName() + "'";
+        return;
+    }
 
     if (!get_current_type()) {
         errorFlag = true;
@@ -388,6 +402,7 @@ void TypeInferenceVisitor::visit(MethodNode& node){
     
     auto method_info = get_current_type()->object_data.methods[node.getName()];
     
+    checkVariableType = true;
     for (auto& arg: func->node->args)
     {
         arg->accept(*this);
@@ -395,6 +410,7 @@ void TypeInferenceVisitor::visit(MethodNode& node){
             return;
 
     }
+    checkVariableType = false;
     
 
     ctx.popScope();
