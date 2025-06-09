@@ -65,12 +65,12 @@ ProgramNode* root = new ProgramNode();
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
 %nonassoc ELIF
-%nonassoc ASSIGNM DESTRUCTIVE_ASSIGNM LAMBDA 
+%nonassoc ASSIGNM DESTRUCTIVE_ASSIGNM LAMBDA AS 
 %right NOT
 %left AND OR 
 %left CONCAT BCONCAT
 %nonassoc EQUAL NOEQUAL
-%nonassoc GREATER LESS GREATER_THAN LESS_THAN 
+%nonassoc GREATER LESS GREATER_THAN LESS_THAN IS
 %left PLUS MINUS
 %left TIMES DIV MOD
 %right POW
@@ -273,7 +273,9 @@ expr:
   | BOOL                            { $$ = new BoolNode($1, yylineno); }
   | STRING                          { $$ = new StringNode($1, yylineno); }
   | ID                              { $$ = new VariableNode($1, yylineno); }
-  | ID LPAREN args RPAREN           { $$ = new CallFuncNode($1, *$3, yylineno); delete $3; }
+  | ID LPAREN args RPAREN           { $$ = new CallFuncNode($1, *$3, yylineno); delete $3;}
+  | ID IS ID                        { $$ = new IsNode($1, $3, yylineno); }
+  | ID AS ID                        { $$ = new AsNode($1, $3, yylineno); }
   | NOT expr                        { $$ = new UnaryOpNode("!", $2, yylineno); }
   | MINUS expr %prec UMINUS         { $$ = new UnaryOpNode("-", $2, yylineno); }
   | expr PLUS expr                  { $$ = new BinOpNode("+", $1, $3, yylineno); }

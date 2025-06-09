@@ -32,6 +32,8 @@ void process_escape_chars(char* s);
 "inherits"            return INHERITS;
 "self"                return SELF;
 "base"                return BASE;
+"is"                  return IS;
+"as"                  return AS;
 
 [a-zA-Z_][a-zA-Z0-9_]* { yylval.sval = strdup(yytext); return ID; }
 [0-9]+\.[0-9]+         { yylval.fval = atof(yytext); return FLOAT; }

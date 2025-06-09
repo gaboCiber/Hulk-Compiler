@@ -369,32 +369,6 @@ void LLVMCodeGenVisitor::visit(ProgramNode& node) {
     }
 }
 
-// void LLVMCodeGenVisitor::visit(CallFuncNode& node) {
-    
-//     // Primero verificar si es built-in
-//     if (ctx.isBuiltin(node.functionName)) {
-//         std::vector<llvm::Value*> argValues;
-//         for (auto arg : node.arguments) {
-//             arg->accept(*this);
-//             argValues.push_back(result);
-//         }
-//         result = generateBuiltinCall(node.functionName, argValues);
-//         return;
-//     }
-    
-//     FunctionInfo* info = ctx.lookupFunction(node.functionName);
-//     llvm::Function* func = module->getFunction(node.functionName);
-
-//     std::vector<llvm::Value*> llvmArgs;
-
-//     for (auto argExpr : node.arguments) {
-//         argExpr->accept(*this);
-//         llvmArgs.push_back(result);
-//     }
-
-//     result = builder.CreateCall(func, llvmArgs, "call" + info->node->name + "tmp");
-// }
-
 
 void LLVMCodeGenVisitor::visit(CallFuncNode& node) {
     // 1. Verificar si es una función built-in
@@ -422,19 +396,15 @@ void LLVMCodeGenVisitor::visit(CallFuncNode& node) {
     // 3. Preparar argumentos
  
     for (size_t i = 0; i < node.arguments.size(); i++) {
-        std::cout<<"Argumento: "<<info->node->args[i]->name<<std::endl;
         
-        std::cout<<"Generando argumento"<<std::endl;
         auto argExpr = node.arguments[i];
         argExpr->accept(*this);
         llvm::Value* actualValue = result;
-        std::cout<<"Finalizando"<<std::endl;
 
         // Obtener tipos
         ctx.pushScope(function_scope[node.functionName]);
         SymbolInfo* simInfo = ctx.currentScope()->lookup(info->node->args[i]->name);
         Type* expectedType = simInfo->type;
-        std::cout<<(expectedType ? expectedType->name : "No hay tipo")<<std::endl;
         ctx.popScope();
 
         // Si actualValue es un alloca (%p), lo cargamos (load)
@@ -615,7 +585,10 @@ void LLVMCodeGenVisitor::visit(WhileNode& node) {
 
 void LLVMCodeGenVisitor::visit(IfNode& node) {
     llvm::Function* func = builder.GetInsertBlock()->getParent();
-    llvm::Type* llvmTy = node.returnType->llvm_type;
+    llvm::Type* llvmTy = node.returnType->kind == Type::Kind::OBJECT
+                        ? llvm::PointerType::getUnqual(node.returnType->llvm_type)
+                        : node.returnType->llvm_type;
+
     
     std::vector<std::pair<llvm::BasicBlock*, llvm::BasicBlock*>> conditionBlocks; // (condBB, thenBB)
     
@@ -666,17 +639,31 @@ void LLVMCodeGenVisitor::visit(IfNode& node) {
         // Cuerpo THEN
         builder.SetInsertPoint(thenBB);
         bodyExpr->accept(*this);
+
+        llvm::Value* casted = result;
+        if (node.returnType->kind == Type::Kind::OBJECT) {
+            llvm::Type* expectedPtrTy = llvm::PointerType::getUnqual(node.returnType->llvm_type);
+            casted = builder.CreateBitCast(result, expectedPtrTy, "cast_phi");
+        }
+        brachResult.push_back(casted);
+
         builder.CreateBr(mergeBB);
 
-        brachResult.push_back(result);
+
     }
     
     // Generar ELSE
     builder.SetInsertPoint(elseBB);
     node.getElseBranch()->accept(*this);
-    builder.CreateBr(mergeBB);
 
-    brachResult.push_back(result);
+    llvm::Value* elseResult = result;
+    if (node.returnType->kind == Type::Kind::OBJECT) {
+        llvm::Type* expectedPtrTy = llvm::PointerType::getUnqual(node.returnType->llvm_type);
+        elseResult = builder.CreateBitCast(result, expectedPtrTy, "cast_phi");
+    }
+    brachResult.push_back(elseResult);
+
+    builder.CreateBr(mergeBB);
     
     // Generar MERGE con PHI node
     builder.SetInsertPoint(mergeBB);
@@ -696,6 +683,41 @@ void LLVMCodeGenVisitor::visit(IfNode& node) {
     builder.SetInsertPoint(mergeBB);
     result = phi;
 }
+
+void LLVMCodeGenVisitor::visit(IsNode& node) {
+    SymbolInfo* info = ctx.currentScope()->lookup(node.variable_name);
+    assert(info);
+
+    Type* varType = info->type;
+    Type* checkType = ctx.type_registry.get_type(node.type_name);
+
+    // Si el tipo de la variable es subtipo del tipo comparado => true
+    bool isSubtype = varType->is_subtype_of(checkType);
+
+    result = llvm::ConstantInt::get(llvm::Type::getInt1Ty(context), isSubtype ? 1 : 0, false);
+}
+
+
+void LLVMCodeGenVisitor::visit(AsNode& node) {
+    SymbolInfo* info = ctx.currentScope()->lookup(node.variable_name);
+    assert(info && "Variable no definida en AsNode");
+    
+    llvm::Value* varPtr = info->llvmValue;
+    llvm::Value* loaded = builder.CreateLoad(
+        llvm::PointerType::getUnqual(info->type->llvm_type),
+        varPtr,
+        node.variable_name + ".as.load"
+    );
+    
+    Type* targetType = ctx.type_registry.get_type(node.type_name);
+    llvm::PointerType* targetPtrTy = llvm::PointerType::getUnqual(targetType->llvm_type);
+    llvm::Value* casted = builder.CreateBitCast(loaded, targetPtrTy, "as.cast");
+    
+    // Es un cast forzado si pasamos la semántica
+    result = casted;
+}
+
+
 
 void LLVMCodeGenVisitor::visit(TypeMember& node){
     node.accept(*this);

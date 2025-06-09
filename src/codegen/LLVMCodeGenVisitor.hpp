@@ -80,6 +80,8 @@ public:
     void visit(SelfNode& node) override;
     void visit(BaseNode& node) override;
     void visit(MethodCallNode& node) override;
+    void visit(IsNode& node) override;
+    void visit(AsNode& node) override;
 
     llvm::Module* getModule() const;
 

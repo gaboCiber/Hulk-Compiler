@@ -166,7 +166,32 @@ public:
     ASTNode* getElseBranch() const { return elseBranch; }
 };
 
+class IsNode: public ASTNode {
 
+public:
+    std::string variable_name;
+    std::string type_name;
+
+    IsNode(const std::string& var_name, const std::string& type_name, int line);
+    ~IsNode() override = default;
+
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;
+};
+
+
+class AsNode: public ASTNode {
+
+public:
+    std::string variable_name;
+    std::string type_name;
+
+    AsNode(const std::string& var_name, const std::string& type_name, int line);
+    ~AsNode() override = default;
+
+    void print(int indent = 0) const override;
+    void accept(Visitor& visitor) override;
+};
 
 
 class TypeNode : public ASTNode {

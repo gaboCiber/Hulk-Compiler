@@ -23,6 +23,8 @@ class MemberAccessNode;
 class SelfNode;
 class BaseNode;
 class MethodCallNode;
+class IsNode;
+class AsNode;
 
 
 class Visitor {
@@ -52,5 +54,7 @@ public:
     virtual void visit(SelfNode& node) = 0;
     virtual void visit(BaseNode& node) = 0;
     virtual void visit(MethodCallNode& node) = 0;
+    virtual void visit(IsNode& node) = 0;
+    virtual void visit(AsNode& node) = 0;
     
 };

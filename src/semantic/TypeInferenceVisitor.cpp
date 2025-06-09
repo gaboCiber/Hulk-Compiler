@@ -146,11 +146,12 @@ void TypeInferenceVisitor::visit(LetInNode& node) {
         if(errorFlag)
             return;
 
-        if(pair.first->declared_type != "")
+        if(!pair.first->declared_type.empty())
             lastType = ctx.type_registry.get_type(pair.first->declared_type);
         
         SymbolInfo* info = ctx.currentScope()->lookup(pair.first->name);
         info->type = lastType;
+        std::cout<<lastType->name<<std::endl;
     }
         
     node.block->accept(*this);
@@ -295,6 +296,14 @@ void TypeInferenceVisitor::visit(IfNode& node) {
     }
 
     node.returnType = lastType;
+}
+
+void TypeInferenceVisitor::visit(IsNode& node){
+    lastType = ctx.boolean_type;
+}
+
+void TypeInferenceVisitor::visit(AsNode& node){
+    lastType = ctx.type_registry.get_type(node.type_name);
 }
 
 void TypeInferenceVisitor::visit(TypeMember& node){

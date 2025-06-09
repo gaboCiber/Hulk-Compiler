@@ -128,6 +128,11 @@ void DefinitionVisitor::visit(IfNode& node) {
     }
 }
 
+void DefinitionVisitor::visit(IsNode& node){}
+
+void DefinitionVisitor::visit(AsNode& node){}
+
+
 void DefinitionVisitor::visit(TypeMember& node){
     node.accept(*this);
 }

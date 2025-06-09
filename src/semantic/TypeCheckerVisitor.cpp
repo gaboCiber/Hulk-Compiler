@@ -166,6 +166,9 @@ void TypeCheckerVisitor::visit(LetInNode& node) {
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferido (" + lastType->name + ") de la variable ' " + pair.first->name + " ' es diferente a su tipo esperado (" + info->type->name + ").\n" ;
             return;
         }
+
+        info->type = lastType;
+        std::cout<<"Let In: "<< info->type->name<<std::endl;
     }
         
     node.block->accept(*this);
@@ -372,6 +375,31 @@ void TypeCheckerVisitor::visit(IfNode& node) {
     }
 
     lastType = expectedType;
+}
+
+void TypeCheckerVisitor::visit(IsNode& node){
+    lastType = ctx.boolean_type;
+}
+
+void TypeCheckerVisitor::visit(AsNode& node){
+    SymbolInfo* info = ctx.currentScope()->lookup(node.variable_name);
+    
+    if(!info->type)
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: tipo todavia no definido para la variable " + node.variable_name + " . \n";
+        return;
+    }
+
+    Type* type = ctx.type_registry.get_type(node.type_name);
+    
+    if (!type->is_subtype_of(info->type)) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo '" + node.type_name +  "' no es subtipo de la varialbe '" + node.variable_name + "' que es de tipo '" + info->type->name + "' \n.";
+        return;
+    }
+
+    lastType = type;
 }
 
 void TypeCheckerVisitor::visit(TypeMember& node){

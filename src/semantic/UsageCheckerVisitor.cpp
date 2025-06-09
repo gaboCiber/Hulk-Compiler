@@ -147,6 +147,43 @@ void UsageCheckerVisitor::visit(IfNode& node) {
     }
 }
 
+void UsageCheckerVisitor::visit(IsNode& node){
+
+    SymbolInfo* info = ctx.currentScope()->lookup(node.variable_name);
+    if(!info)
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: variable '" + node.variable_name +  "' no definida en este scope.\n";
+        return;
+    }
+
+    if(!ctx.type_registry.has_type(node.type_name))
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: tipo '" + node.type_name +  "' no definido.\n";
+        return;
+    }
+}
+
+void UsageCheckerVisitor::visit(AsNode& node){
+    
+    SymbolInfo* info = ctx.currentScope()->lookup(node.variable_name);
+    if(!info)
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: variable '" + node.variable_name +  "' no definida en este scope.\n";
+        return;
+    }
+
+    if(!ctx.type_registry.has_type(node.type_name))
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: tipo '" + node.type_name +  "' no definido.\n";
+        return;
+    }
+
+}
+
 void UsageCheckerVisitor::visit(TypeMember& node){
     node.accept(*this);
 }

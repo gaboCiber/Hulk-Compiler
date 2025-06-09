@@ -268,10 +268,28 @@ IfNode::~IfNode() {
 }
 
 
+IsNode::IsNode(const std::string& var_name, const std::string& type_name, int line)
+    : ASTNode(line), variable_name(var_name), type_name(type_name) {}
+
+void IsNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "IsNode: " << variable_name << " is " << type_name << "\n";
+}
+
+void IsNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
 
 
+AsNode::AsNode(const std::string& var_name, const std::string& type_name, int line)
+    : ASTNode(line), variable_name(var_name), type_name(type_name) {}
 
+void AsNode::print(int indent) const {
+    std::cout << std::string(indent, ' ') << "AsNode: " << variable_name << " as " << type_name << "\n";
+}
 
+void AsNode::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
 
 TypeNode::TypeNode(const std::string& name, 
                  std::vector<VariableNode*>* args,
