@@ -97,6 +97,7 @@ private:
     std::unordered_map<TypeAttrKey, ASTNode*> types_init_attr;
     std::unordered_map<std::string, std::vector<ASTNode*>> types_inherits_args;
     std::unordered_map<std::string, Scope*> types_scope;
+    std::unordered_map<std::string, Scope*> function_scope;
     std::unordered_map<std::string, std::vector<std::string>> types_constructor_names;
     
     

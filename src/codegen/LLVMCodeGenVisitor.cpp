@@ -210,6 +210,7 @@ void LLVMCodeGenVisitor::visit(BlockNode& node) {
 }
 
 void LLVMCodeGenVisitor::visit(VariableNode& node) {
+    
     SymbolInfo* info = ctx.currentScope()->lookup(node.name);
 
     if (info && info->isBuiltin && info->isConstant) {
@@ -280,6 +281,7 @@ void LLVMCodeGenVisitor::visit(LetInNode& node) {
 void LLVMCodeGenVisitor::visit(FunctionNode& node) {
     // 1. Obtener información de tipos desde el contexto
     FunctionInfo* info = ctx.lookupFunction(node.name);
+    function_scope[node.name] = node.scope;
 
     // 2. Obtener tipos de los argumentos (ajustando para user types)
     std::vector<llvm::Type*> argTypes;
@@ -367,84 +369,95 @@ void LLVMCodeGenVisitor::visit(ProgramNode& node) {
     }
 }
 
-void LLVMCodeGenVisitor::visit(CallFuncNode& node) {
-    
-    // Primero verificar si es built-in
-    if (ctx.isBuiltin(node.functionName)) {
-        std::vector<llvm::Value*> argValues;
-        for (auto arg : node.arguments) {
-            arg->accept(*this);
-            argValues.push_back(result);
-        }
-        result = generateBuiltinCall(node.functionName, argValues);
-        return;
-    }
-    
-    FunctionInfo* info = ctx.lookupFunction(node.functionName);
-    llvm::Function* func = module->getFunction(node.functionName);
-
-    std::vector<llvm::Value*> llvmArgs;
-
-    for (auto argExpr : node.arguments) {
-        argExpr->accept(*this);
-        llvmArgs.push_back(result);
-    }
-
-    result = builder.CreateCall(func, llvmArgs, "call" + info->node->name + "tmp");
-}
-
 // void LLVMCodeGenVisitor::visit(CallFuncNode& node) {
-//     // 1. Verificar si es una función built-in
+    
+//     // Primero verificar si es built-in
 //     if (ctx.isBuiltin(node.functionName)) {
 //         std::vector<llvm::Value*> argValues;
 //         for (auto arg : node.arguments) {
-//             arg->accept(*this);  // actualiza `result`
+//             arg->accept(*this);
 //             argValues.push_back(result);
 //         }
 //         result = generateBuiltinCall(node.functionName, argValues);
 //         return;
 //     }
-
-//     // 2. Obtener información de la función
+    
 //     FunctionInfo* info = ctx.lookupFunction(node.functionName);
 //     llvm::Function* func = module->getFunction(node.functionName);
-//     if (!func) {
-//         std::cerr << "Error: función no encontrada: " << node.functionName << "\n";
-//         exit(1);
-//     }
 
 //     std::vector<llvm::Value*> llvmArgs;
 
-//     // 3. Preparar argumentos
-//     for (size_t i = 0; i < node.arguments.size(); ++i) {
-//         auto argExpr = node.arguments[i];
+//     for (auto argExpr : node.arguments) {
 //         argExpr->accept(*this);
-//         llvm::Value* actualValue = result;
-
-//         // Obtener tipos
-//         Type* expectedType = info->returnType;
-
-//         // Si actualValue es un alloca (%p), lo cargamos (load)
-//         if (actualValue->getType()->isPointerTy() &&
-//             actualValue->getType()->getPointerElementType()->isPointerTy() &&
-//             expectedType->kind == Type::Kind::OBJECT) 
-//         {
-//             actualValue = builder.CreateLoad(actualValue->getType()->getPointerElementType(), actualValue, "loaded_arg");
-//         }
-
-//         // Si hay subtipado, hacer cast
-//         if (expectedType->kind == Type::Kind::OBJECT) {
-
-//             llvm::Type* expectedPtrType = llvm::PointerType::getUnqual(expectedType->llvm_type);
-//             actualValue = builder.CreateBitCast(actualValue, expectedPtrType, "cast_arg");
-//         }
-
-//         llvmArgs.push_back(actualValue);
+//         llvmArgs.push_back(result);
 //     }
 
-//     // 4. Generar la llamada
 //     result = builder.CreateCall(func, llvmArgs, "call" + info->node->name + "tmp");
 // }
+
+
+void LLVMCodeGenVisitor::visit(CallFuncNode& node) {
+    // 1. Verificar si es una función built-in
+    if (ctx.isBuiltin(node.functionName)) {
+        std::vector<llvm::Value*> argValues;
+        for (auto arg : node.arguments) {
+            arg->accept(*this);  // actualiza `result`
+            argValues.push_back(result);
+        }
+        result = generateBuiltinCall(node.functionName, argValues);
+        return;
+    }
+
+    // 2. Obtener información de la función
+    FunctionInfo* info = ctx.lookupFunction(node.functionName);
+    llvm::Function* func = module->getFunction(node.functionName);
+    if (!func) {
+        std::cerr << "Error: función no encontrada: " << node.functionName << "\n";
+        exit(1);
+    }
+
+    std::vector<llvm::Value*> llvmArgs;
+
+    
+    // 3. Preparar argumentos
+ 
+    for (size_t i = 0; i < node.arguments.size(); i++) {
+        std::cout<<"Argumento: "<<info->node->args[i]->name<<std::endl;
+        
+        std::cout<<"Generando argumento"<<std::endl;
+        auto argExpr = node.arguments[i];
+        argExpr->accept(*this);
+        llvm::Value* actualValue = result;
+        std::cout<<"Finalizando"<<std::endl;
+
+        // Obtener tipos
+        ctx.pushScope(function_scope[node.functionName]);
+        SymbolInfo* simInfo = ctx.currentScope()->lookup(info->node->args[i]->name);
+        Type* expectedType = simInfo->type;
+        std::cout<<(expectedType ? expectedType->name : "No hay tipo")<<std::endl;
+        ctx.popScope();
+
+        // Si actualValue es un alloca (%p), lo cargamos (load)
+        if (actualValue->getType()->isPointerTy() &&
+            actualValue->getType()->getPointerElementType()->isPointerTy() &&
+            expectedType->kind == Type::Kind::OBJECT) 
+        {
+            actualValue = builder.CreateLoad(actualValue->getType()->getPointerElementType(), actualValue, "loaded_arg");
+        }
+
+        // Si hay subtipado, hacer cast
+        if (expectedType->kind == Type::Kind::OBJECT) {
+
+            llvm::Type* expectedPtrType = llvm::PointerType::getUnqual(expectedType->llvm_type);
+            actualValue = builder.CreateBitCast(actualValue, expectedPtrType, "cast_arg");
+        }
+
+        llvmArgs.push_back(actualValue);
+    }
+
+    // 4. Generar la llamada
+    result = builder.CreateCall(func, llvmArgs, "call" + info->node->name + "tmp");
+}
 
 
 llvm::Value* LLVMCodeGenVisitor::generateBuiltinCall(const std::string& name, const std::vector<llvm::Value*>& args) {
