@@ -743,8 +743,6 @@ void LLVMCodeGenVisitor::visit(MethodNode& node) {
 
 void LLVMCodeGenVisitor::defineTypeContructorVariables(Type* type, std::vector<ASTNode*> arguments){
 
-    ctx.pushScope(types_scope[type->name]);
-
     size_t i = 0;
     for(auto arg: arguments)
     {
@@ -758,7 +756,9 @@ void LLVMCodeGenVisitor::defineTypeContructorVariables(Type* type, std::vector<A
             return;
         }
 
-        // Obtener tipo desde contexto (debería estar definido en análisis de tipos)
+        // Obtener tipo desde contexto
+        ctx.pushScope(types_scope[type->name]);
+
         std::string var_name = types_constructor_names[type->name].at(i);
         SymbolInfo* info = ctx.currentScope()->lookup(var_name);
 
@@ -771,51 +771,63 @@ void LLVMCodeGenVisitor::defineTypeContructorVariables(Type* type, std::vector<A
         //info->value = valueExpr;
         info->llvmValue = alloca;
 
+        ctx.popScope();
+
         i++;
     }
 
-    ctx.popScope();
+    
 }
 
 void LLVMCodeGenVisitor::visit(NewNode& node) {
-
+    
     Type* type = ctx.type_registry.get_type(node.type_name);
     push_current_type(type);
 
     // 1. Allocate memory
     llvm::StructType* structTy = static_cast<llvm::StructType*>(type->llvm_type);
     llvm::Value* object = builder.CreateAlloca(structTy, nullptr, node.type_name + ".instance");
-    
-    
+
     // 2. Process constructor arguments
     defineTypeContructorVariables(type, *node.arguments);
-
     // 3. Initialize attributes
     unsigned fieldIndex = 0;
     Type* current = type;
     while (current != nullptr) {
+        ctx.pushScope(types_scope[current->name]);
         for (const auto& attr : current->object_data.attributes) {
+            
+
             const std::string& attrName = attr.first;
             ASTNode* initializer = types_init_attr[TypeAttrKey(current->name, attrName)];
             
+
             llvm::Value* initValue;
             if (initializer) {
                 initializer->accept(*this);
                 initValue = result;
             } 
             
+
             // Store en el campo correspondiente
             llvm::Value* fieldPtr = builder.CreateStructGEP(structTy, object, fieldIndex, attrName);
             builder.CreateStore(initValue, fieldPtr);
             fieldIndex++;
         }
+
         auto old = current;
         current = current->object_data.parent;
 
         if(current)
+        {
+            ctx.pushScope(types_scope[old->name]);
             defineTypeContructorVariables(current, types_inherits_args[old->name]);
+            ctx.popScope();
+        }
+
+        ctx.popScope();
     }
-    
+
     result = object;
     pop_current_type();
 
