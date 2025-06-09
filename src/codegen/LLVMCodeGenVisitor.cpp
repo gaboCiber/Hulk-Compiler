@@ -278,46 +278,69 @@ void LLVMCodeGenVisitor::visit(LetInNode& node) {
 }
 
 void LLVMCodeGenVisitor::visit(FunctionNode& node) {
-    // Obtener información de tipos desde contexto
+    // 1. Obtener información de tipos desde el contexto
     FunctionInfo* info = ctx.lookupFunction(node.name);
 
-    // Obtener tipos de los argumentos
+    // 2. Obtener tipos de los argumentos (ajustando para user types)
     std::vector<llvm::Type*> argTypes;
     for (VariableNode* arg : node.args) {
         SymbolInfo* argInfo = node.scope->lookup(arg->name);
-        argTypes.push_back(argInfo->type->llvm_type);
+        Type* argType = argInfo->type;
+
+        llvm::Type* llvmArgType;
+        if (argType->kind == Type::Kind::OBJECT) {
+            // Convertir a puntero si es tipo definido por el usuario
+            llvmArgType = llvm::PointerType::getUnqual(argType->llvm_type);
+        } else {
+            llvmArgType = argType->llvm_type;
+        }
+        argTypes.push_back(llvmArgType);
     }
 
-    // Crear tipo de retorno real
+    // 3. Crear tipo de retorno real
     llvm::Type* retTy = info->returnType->llvm_type;
     llvm::FunctionType* funcType = llvm::FunctionType::get(retTy, argTypes, false);
 
+    // 4. Crear la función en el módulo
     llvm::Function* func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, node.name, module.get());
+
+    // 5. Crear bloque de entrada
     llvm::BasicBlock* entry = llvm::BasicBlock::Create(context, "entry", func);
     builder.SetInsertPoint(entry);
 
     ctx.pushScope(node.scope);
 
-    // Mapear argumentos
+    // 6. Mapear argumentos
     unsigned i = 0;
     for (auto& llvmArg : func->args()) {
         VariableNode* arg = node.args[i];
         llvmArg.setName(arg->name);
 
         SymbolInfo* argInfo = node.scope->lookup(arg->name);
-        llvm::Type* llvmTy = argInfo->type->llvm_type;
+        Type* argType = argInfo->type;
 
-        llvm::AllocaInst* alloca = builder.CreateAlloca(llvmTy, nullptr, arg->name);
+        // Si es tipo de usuario, entonces es puntero
+        llvm::Type* varType = argType->kind == Type::Kind::OBJECT
+                                ? llvm::PointerType::getUnqual(argType->llvm_type)
+                                : argType->llvm_type;
+
+        llvm::AllocaInst* alloca = builder.CreateAlloca(varType, nullptr, arg->name);
         builder.CreateStore(&llvmArg, alloca);
         argInfo->llvmValue = alloca;
 
         i++;
     }
 
+    // 7. Visitar el bloque
     node.block->accept(*this);
+
+    // 8. Retornar el resultado
     builder.CreateRet(result);
+
+    // 9. Restaurar el scope
     ctx.popScope();
 }
+
 
 void LLVMCodeGenVisitor::visit(ProgramNode& node) {
 
@@ -369,6 +392,60 @@ void LLVMCodeGenVisitor::visit(CallFuncNode& node) {
 
     result = builder.CreateCall(func, llvmArgs, "call" + info->node->name + "tmp");
 }
+
+// void LLVMCodeGenVisitor::visit(CallFuncNode& node) {
+//     // 1. Verificar si es una función built-in
+//     if (ctx.isBuiltin(node.functionName)) {
+//         std::vector<llvm::Value*> argValues;
+//         for (auto arg : node.arguments) {
+//             arg->accept(*this);  // actualiza `result`
+//             argValues.push_back(result);
+//         }
+//         result = generateBuiltinCall(node.functionName, argValues);
+//         return;
+//     }
+
+//     // 2. Obtener información de la función
+//     FunctionInfo* info = ctx.lookupFunction(node.functionName);
+//     llvm::Function* func = module->getFunction(node.functionName);
+//     if (!func) {
+//         std::cerr << "Error: función no encontrada: " << node.functionName << "\n";
+//         exit(1);
+//     }
+
+//     std::vector<llvm::Value*> llvmArgs;
+
+//     // 3. Preparar argumentos
+//     for (size_t i = 0; i < node.arguments.size(); ++i) {
+//         auto argExpr = node.arguments[i];
+//         argExpr->accept(*this);
+//         llvm::Value* actualValue = result;
+
+//         // Obtener tipos
+//         Type* expectedType = info->returnType;
+
+//         // Si actualValue es un alloca (%p), lo cargamos (load)
+//         if (actualValue->getType()->isPointerTy() &&
+//             actualValue->getType()->getPointerElementType()->isPointerTy() &&
+//             expectedType->kind == Type::Kind::OBJECT) 
+//         {
+//             actualValue = builder.CreateLoad(actualValue->getType()->getPointerElementType(), actualValue, "loaded_arg");
+//         }
+
+//         // Si hay subtipado, hacer cast
+//         if (expectedType->kind == Type::Kind::OBJECT) {
+
+//             llvm::Type* expectedPtrType = llvm::PointerType::getUnqual(expectedType->llvm_type);
+//             actualValue = builder.CreateBitCast(actualValue, expectedPtrType, "cast_arg");
+//         }
+
+//         llvmArgs.push_back(actualValue);
+//     }
+
+//     // 4. Generar la llamada
+//     result = builder.CreateCall(func, llvmArgs, "call" + info->node->name + "tmp");
+// }
+
 
 llvm::Value* LLVMCodeGenVisitor::generateBuiltinCall(const std::string& name, const std::vector<llvm::Value*>& args) {
     
@@ -893,37 +970,44 @@ void LLVMCodeGenVisitor::visit(SelfNode& node) {
 }
 
 void LLVMCodeGenVisitor::visit(BaseNode& node) {
-    // 1. Obtener el método actual
+
     llvm::Function* currentFunc = builder.GetInsertBlock()->getParent();
     std::string currentMethodName = currentFunc->getName().split('.').second.str();
-    
-    // 2. Buscar en la jerarquía de padres
+
     Type* parentType = get_current_type()->object_data.parent;
+
     while (parentType) {
-        // Buscar el método en el padre
         auto it = parentType->object_data.methods.find(currentMethodName);
         if (it != parentType->object_data.methods.end()) {
-            // 3. Preparar argumentos (args)
-            std::vector<llvm::Value*> args;
-            
-            // Argumentos del nodo base (si los hay)
-            if (node.arguments) {
-                for (auto arg : *node.arguments) {
-                    arg->accept(*this);
-                    args.push_back(result);
-                }
-            }
-            
-            // 4. Llamar al método del padre
-            std::string parentMethodName = parentType->name + "." + currentMethodName;
-            llvm::Function* parentFunc = module->getFunction(parentMethodName);
-            result = builder.CreateCall(parentFunc, args);
-            return;
+            break;
         }
+
         parentType = parentType->object_data.parent;
     }
-    
+
+    llvm::Value* selfValue = currentFunc->getArg(0);  // %self
+    llvm::Type* parentStructTy = parentType->llvm_type;
+    llvm::PointerType* parentPtrTy = llvm::PointerType::getUnqual(parentStructTy);
+    llvm::Value* castedSelf = builder.CreateBitCast(selfValue, parentPtrTy, "base_self");
+
+    std::string parentMethodName = parentType->name + "." + currentMethodName;
+    llvm::Function* parentFunc = module->getFunction(parentMethodName);
+    if (!parentFunc) {
+        std::cerr << "Error: no se encontró la función " << parentMethodName << " en el módulo.\n";
+        exit(1);
+    }
+
+    std::vector<llvm::Value*> args = { castedSelf };
+    if (node.arguments) {
+        for (auto arg : *node.arguments) {
+            arg->accept(*this);
+            args.push_back(result);
+        }
+    }
+
+    result = builder.CreateCall(parentFunc, args, "base_call");
 }
+
 
 void LLVMCodeGenVisitor::visit(MethodCallNode& node) {
     // Evaluar el objeto

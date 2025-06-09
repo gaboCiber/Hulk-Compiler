@@ -87,8 +87,8 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
     }
     else if( node.op == ":=")
     {
-        //std::cout<<(leftT ? "Ok left" : "Down left")<<std::endl;
-        //std::cout<<(rightT ? "Ok right" : "Down right")<<std::endl;
+
+
 
         if (leftT != rightT) {
             errorFlag = true;
@@ -174,27 +174,25 @@ void TypeCheckerVisitor::visit(LetInNode& node) {
 
 void TypeCheckerVisitor::visit(FunctionNode& node) {
 
-    //std::cout<<"_1"<<std::endl;
     
     ctx.pushScope(node.scope);
     
     node.block->accept(*this);
 
-    //std::cout<<"_2"<<std::endl;
+    Type* infered = lastType;
+
     for (auto& arg: node.args)
     {
-        //std::cout<<"_2." << arg->name<<std::endl;
+
         arg->accept(*this);
         if(errorFlag)
             return;
 
     }
 
-    //std::cout<<"_3"<<std::endl;
     FunctionInfo* info = ctx.lookupFunction(node.name);
     
-    //std::cout<<"_4"<<std::endl;
-    if(!lastType->is_subtype_of(info->returnType))
+    if(!infered->is_subtype_of(info->returnType))
     {
         errorFlag = true;
         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferedo de la función '" + node.name + "' ( " + lastType->name + " ) es diferente a su tipo esperado ( " + info->returnType->name +" ).\n";
@@ -203,7 +201,6 @@ void TypeCheckerVisitor::visit(FunctionNode& node) {
     
     ctx.popScope();
 
-    //std::cout<<"_5"<<std::endl;
 }
 
 void TypeCheckerVisitor::visit(ProgramNode& node) {
@@ -295,6 +292,7 @@ void TypeCheckerVisitor::checkBuiltinCall(CallFuncNode& node) {
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el argumento de la función ' " + node.functionName + " ' debe ser de tipo primitivo, no de tipo ' " + lastType->name + " ' .\n";
             return;    
         }
+
     }
     else {
         for (size_t i = 0; i < node.arguments.size(); ++i) {
@@ -411,13 +409,14 @@ void TypeCheckerVisitor::visit(TypeNode& node){
 
     // Verificar miembros
     for (auto member : node.members) {
-        //std::cout<<"Entrando " << member->getName()<<std::endl;
+
         member->accept(*this);
         if (errorFlag) return;
     }
     
     ctx.popScope();
     pop_current_type();
+
 }
 
 
@@ -479,7 +478,6 @@ void TypeCheckerVisitor::visit(AttributeNode& node) {
 
 void TypeCheckerVisitor::visit(MethodNode& node) {
     
-    //std::cout<<"1"<<std::endl;
 
     Type* current_type = get_current_type();
     std::string method_name = current_type->name + "." + node.getName();
@@ -491,38 +489,34 @@ void TypeCheckerVisitor::visit(MethodNode& node) {
         return;
     }
 
-    //std::cout<<"2"<<std::endl;
     func_info->node->accept(*this);
     if(errorFlag)
             return;
     
-    //std::cout<<"3"<<std::endl;
     // Verificar tipo de retorno declarado
     Type* declared_return = node.declared_type.empty() ? nullptr :
                           ctx.type_registry.get_type(node.declared_type);
 
 
-    //std::cout<<"4"<<std::endl;
     auto method_info = get_current_type()->object_data.methods[node.getName()];
 
-    //std::cout<<"5"<<std::endl;
     // Procesar cuerpo del método
     ctx.pushScope(func_info->node->scope);
         
     size_t i = 0;
     for (auto& arg: func_info->node->args)
     {
-        //std::cout<<"5."<< std::to_string(i)<<".1"<<std::endl;
+
         SymbolInfo* info = ctx.currentScope()->lookup(arg->name);
 
-        //std::cout<<"5."<< std::to_string(i)<<".2"<<std::endl;
+
         if(!info->type)
         {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error: no se pudo inferir el tipo del argumento '" + arg->name + "' \n"; 
         }
 
-        //std::cout<<"5."<< std::to_string(i)<<".3"<<std::endl;
+
         if(!arg->declared_type.empty())
         {
             Type* declared_arg = ctx.type_registry.get_type(arg->declared_type);
@@ -536,7 +530,7 @@ void TypeCheckerVisitor::visit(MethodNode& node) {
             
         }
 
-        //std::cout<<"5."<< std::to_string(i)<<".4"<<std::endl;
+
         method_info->parameter_types.at(i) = info->type;  
 
         i++;
@@ -544,7 +538,6 @@ void TypeCheckerVisitor::visit(MethodNode& node) {
 
     ctx.popScope();
 
-    //std::cout<<"6"<<std::endl;
     // Verificar compatibilidad de retorno
     if (declared_return && !lastType->is_subtype_of(declared_return)) {
         errorFlag = true;
@@ -552,13 +545,11 @@ void TypeCheckerVisitor::visit(MethodNode& node) {
         return;
     }
 
-    //std::cout<<"7"<<std::endl;
     // Registrar tipo de retorno final
     Type* return_type = declared_return ? declared_return : lastType;
     func_info->returnType = method_info->return_type = return_type;
     lastType = return_type;
 
-    //std::cout<<"8"<<std::endl;
 }
 
 void TypeCheckerVisitor::visit(NewNode& node) {
@@ -613,15 +604,16 @@ void TypeCheckerVisitor::visit(SelfNode& node){
 
 void TypeCheckerVisitor::visit(BaseNode& node) {
     Type* current = get_current_type();
+    std::string realFuncName = ctx.currentScope()->functionName.substr(get_current_type()->name.size() + 1);
 
     // Verificar argumentos si existen
     if (node.arguments) {
         // Verificar compatibilidad con constructor del padre
         Type* parent_type = current->object_data.parent;
 
-        if (node.arguments->size() != parent_type->object_data.constructor.size()) {
+        if (node.arguments->size() != parent_type->object_data.methods[realFuncName]->parameter_types.size()) {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: Número incorrecto de argumentos para el constructor";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: Número incorrecto de argumentos para el base";
             return;
         }
 
@@ -642,7 +634,7 @@ void TypeCheckerVisitor::visit(BaseNode& node) {
 
     }
 
-    lastType = current->object_data.parent;
+    lastType = current->object_data.parent->object_data.methods[realFuncName]->return_type;
 }
 
 void TypeCheckerVisitor::visit(MethodCallNode& node) {

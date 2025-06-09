@@ -303,7 +303,7 @@ void TypeInferenceVisitor::visit(TypeMember& node){
 
 void TypeInferenceVisitor::visit(TypeNode& node){
     
-    // Registrar el tipo ya se hizo en DefinitionVisitor
+    // Registrar el tipo ya se hizo en DefinitionVisito
 
     push_current_type(node.name);
     ctx.pushScope(node.scope);
@@ -321,6 +321,7 @@ void TypeInferenceVisitor::visit(TypeNode& node){
         if (errorFlag) return;
     }
 
+
     checkVariableType = true;
     for (auto arg : *node.type_args){
         arg->accept(*this);
@@ -331,7 +332,6 @@ void TypeInferenceVisitor::visit(TypeNode& node){
     
     pop_current_type();
     ctx.popScope();
-
 }
 
 void TypeInferenceVisitor::visit(InheritsNode& node){
@@ -480,13 +480,15 @@ void TypeInferenceVisitor::visit(BaseNode& node){
     // Procesar argumentos si existen
     if (node.arguments) {
         for (auto arg : *node.arguments) {
+
             arg->accept(*this);
             if (errorFlag) return;
         }
     }
     
+    std::string realFuncName = ctx.currentScope()->functionName.substr(get_current_type()->name.size() + 1);
     
-    lastType = current->object_data.parent->object_data.methods[ctx.currentScope()->functionName]->return_type;
+    lastType = current->object_data.parent->object_data.methods[realFuncName]->return_type;
 }
     
 void TypeInferenceVisitor::visit(MethodCallNode& node) {
