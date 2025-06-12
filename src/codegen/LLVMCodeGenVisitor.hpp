@@ -8,10 +8,12 @@
 #include <llvm/IR/Module.h>       // ✅ define llvm::Module
 #include <llvm/IR/Value.h>        // ✅ define llvm::Value
 #include <llvm/IR/Type.h>
+#include <llvm/IR/DerivedTypes.h>
 
 #include <string>
 #include <unordered_map>
 #include <stack>
+#include <map>
 #include <vector>
 #include <memory>  // para std::unique_ptr
 
@@ -92,6 +94,11 @@ private:
     llvm::Function* getPrintFunctionForType(llvm::Type *type);
     llvm::Function* getBuiltinFunction(const std::string& name, llvm::Type* returnType, const std::vector<llvm::Type*>& argTypes);
     llvm::Value* getTypeCode(llvm::Type* type);
+    llvm::StructType* defineVTableType(Type* type);
+    std::vector<llvm::Type*> getLLVMParamTypesForMethod(Type* type, FunctionType* fnType);
+    llvm::Constant* createVTableInstance(Type* type);
+    llvm::GlobalVariable* defineVTableGlobal(Type* type, llvm::Constant* vtableInstance);
+    void constructTypeMethodStructs(Type* type);
 
 
     llvm::Type* defineTypeStruct(Type* type);
@@ -101,7 +108,11 @@ private:
     std::unordered_map<std::string, Scope*> types_scope;
     std::unordered_map<std::string, Scope*> function_scope;
     std::unordered_map<std::string, std::vector<std::string>> types_constructor_names;
-    
+    std::unordered_map<std::string, llvm::GlobalVariable*> types_vtable_globals;
+    std::unordered_map<std::string, std::map<std::string, int>> types_method_index_map;
+    std::unordered_map<std::string, std::vector<std::string>> types_methods_ordered;
+
+
     
     void defineTypeContructorVariables(Type* type, std::vector<ASTNode*> arguments);
 
