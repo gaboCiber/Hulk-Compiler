@@ -32,7 +32,8 @@ void Scope::define(const std::string& name, ASTNode* value) {
     }
     else{
         info = new SymbolInfo();
-        info->type = nullptr;
+        info->staticType = nullptr;
+        info->dynamicType = nullptr;
         info->value = value;
         symbols[name] = *info;
     }

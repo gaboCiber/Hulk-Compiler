@@ -88,8 +88,6 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
     else if( node.op == ":=")
     {
 
-
-
         if (leftT != rightT) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos del mismo tipo, no (" + leftT->name + " y " + rightT->name + "). \n";
@@ -130,22 +128,33 @@ void TypeCheckerVisitor::visit(BlockNode& node) {
 
 void TypeCheckerVisitor::visit(VariableNode& node) {
 
-    Type* expected = nullptr;
-    if(node.declared_type != "")
-        expected = ctx.type_registry.get_type(node.declared_type);
-    
     SymbolInfo* info = ctx.currentScope()->lookup(node.name);
-    
-    if (expected != nullptr) {
-        if(!expected->is_subtype_of(info->type))
-        {
-            errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferido (" + info->type->name + ") de la variable ' " + node.name + " ' es diferente a su tipo esperado (" + expected->name + ").\n" ;
-            return;
-        }    
+
+    if(!info->dynamicType)
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: la variable " + node.name + " no posee tipo.\n" ;
+        return;
     }
 
-    lastType = info->type;
+    if(!node.declared_type.empty())
+    {
+        Type* expected = ctx.type_registry.get_type(node.declared_type);
+        if(!info->dynamicType->is_subtype_of(expected))
+        {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferido (" + info->dynamicType->name + ") de la variable ' " + node.name + " ' es diferente a su tipo esperado (" + expected->name + ").\n" ;
+            return;
+        }    
+
+         info->staticType = expected;
+
+    }
+    else
+        info->staticType = info->dynamicType;
+    
+    
+    lastType = info->staticType;
     
 }
 
@@ -160,15 +169,29 @@ void TypeCheckerVisitor::visit(LetInNode& node) {
 
         SymbolInfo* info = ctx.currentScope()->lookup(pair.first->name);
 
-        if(!lastType->is_subtype_of(info->type))
+        if(lastType != info->dynamicType)
         {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferido (" + lastType->name + ") de la variable ' " + pair.first->name + " ' es diferente a su tipo esperado (" + info->type->name + ").\n" ;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferido (" + info->dynamicType->name + ") de la variable ' " + pair.first->name + " ' es diferente a su lastype (" + lastType->name + ").\n" ;
             return;
         }
 
-        info->type = lastType;
-        std::cout<<"Let In: "<< info->type->name<<std::endl;
+        if(!pair.first->declared_type.empty())
+        {
+            Type* expected = ctx.type_registry.get_type(pair.first->declared_type);
+            if(!info->dynamicType->is_subtype_of(expected))
+            {
+                errorFlag = true;
+                errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferido (" + info->dynamicType->name + ") de la variable ' " + pair.first->name + " ' es diferente a su tipo esperado (" + expected->name + ").\n" ;
+                return;
+            }    
+
+            info->staticType = expected;
+        }
+        else{
+            info->staticType = info->dynamicType;
+        }
+        
     }
         
     node.block->accept(*this);
@@ -183,23 +206,36 @@ void TypeCheckerVisitor::visit(FunctionNode& node) {
     node.block->accept(*this);
 
     Type* infered = lastType;
+    FunctionInfo* info = ctx.lookupFunction(node.name);
+
+    if(infered != info->dinamicReturnType)
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferido (" + infered->name + ") de la funcion ' " + node.name + " ' es diferente a su lastype (" + lastType->name + ").\n" ;
+        return;
+    }
 
     for (auto& arg: node.args)
     {
-
         arg->accept(*this);
         if(errorFlag)
             return;
-
     }
-
-    FunctionInfo* info = ctx.lookupFunction(node.name);
     
-    if(!infered->is_subtype_of(info->returnType))
+     if(!node.declared_type.empty())
     {
-        errorFlag = true;
-        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferedo de la función '" + node.name + "' ( " + lastType->name + " ) es diferente a su tipo esperado ( " + info->returnType->name +" ).\n";
-        return;
+        Type* expected = ctx.type_registry.get_type(node.declared_type);
+        if(!info->dinamicReturnType->is_subtype_of(expected))
+        {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferido (" + info->dinamicReturnType->name + ") de la función ' " + node.name + " ' es diferente a su tipo esperado (" + expected->name + ").\n" ;
+            return;
+        }    
+
+        info->staticReturnType = expected;
+    }
+    else{
+        info->staticReturnType = info->dinamicReturnType;
     }
     
     ctx.popScope();
@@ -254,14 +290,14 @@ void TypeCheckerVisitor::visit(CallFuncNode& node){
             return;
         }
 
-        if (!actualType->is_subtype_of(expectedInfo->type)) {
+        if (!actualType->is_subtype_of(expectedInfo->staticType)) {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error: el argumento '" + std::to_string(i+1) + "' de la función ' " + node.functionName + " ' debe ser de tipo ' " + expectedInfo->type->name + " ' o de su subtipo, no de tipo ' " + actualType->name + " ' .\n";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error: el argumento '" + std::to_string(i+1) + "' de la función ' " + node.functionName + " ' debe ser de tipo ' " + expectedInfo->staticType->name + " ' o de su subtipo, no de tipo ' " + actualType->name + " ' .\n";
             return;
         }
     }
 
-    lastType = info->returnType;
+    lastType = info->staticReturnType;
 }
 
 void TypeCheckerVisitor::checkBuiltinCall(CallFuncNode& node) {
@@ -384,7 +420,7 @@ void TypeCheckerVisitor::visit(IsNode& node){
 void TypeCheckerVisitor::visit(AsNode& node){
     SymbolInfo* info = ctx.currentScope()->lookup(node.variable_name);
     
-    if(!info->type)
+    if(!info->staticType)
     {
         errorFlag = true;
         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: tipo todavia no definido para la variable " + node.variable_name + " . \n";
@@ -393,9 +429,9 @@ void TypeCheckerVisitor::visit(AsNode& node){
 
     Type* type = ctx.type_registry.get_type(node.type_name);
     
-    if (!type->is_subtype_of(info->type)) {
+    if (!type->is_subtype_of(info->staticType)) {
         errorFlag = true;
-        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo '" + node.type_name +  "' no es subtipo de la varialbe '" + node.variable_name + "' que es de tipo '" + info->type->name + "' \n.";
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo '" + node.type_name +  "' no es subtipo de la varialbe '" + node.variable_name + "' que es de tipo '" + info->staticType->name + "' \n.";
         return;
     }
 
@@ -538,7 +574,7 @@ void TypeCheckerVisitor::visit(MethodNode& node) {
         SymbolInfo* info = ctx.currentScope()->lookup(arg->name);
 
 
-        if(!info->type)
+        if(!info->staticType)
         {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Error: no se pudo inferir el tipo del argumento '" + arg->name + "' \n"; 
@@ -549,17 +585,20 @@ void TypeCheckerVisitor::visit(MethodNode& node) {
         {
             Type* declared_arg = ctx.type_registry.get_type(arg->declared_type);
     
-            if(!info->type->is_subtype_of(declared_arg))
+            if(!info->dynamicType->is_subtype_of(declared_arg))
             {
                 errorFlag = true;
                 errorMsg = "[Line " + std::to_string(node.line) + "] Error: el argumento '" + arg->name + "' debe ser de tipo '" + declared_arg->name + "' o subtipo";
                 return;
             }        
             
+            info->staticType = declared_arg;
         }
+        else
+            info->staticType = info->dynamicType;
 
 
-        method_info->parameter_types.at(i) = info->type;  
+        method_info->parameter_types.at(i) = info->staticType;  
 
         i++;
     }
@@ -572,11 +611,15 @@ void TypeCheckerVisitor::visit(MethodNode& node) {
         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: Retorno incompatible con tipo declarado";
         return;
     }
+    else if(declared_return)
+        func_info->staticReturnType = method_info->return_type = declared_return;
+    else
+        func_info->staticReturnType = method_info->return_type = lastType;
+
 
     // Registrar tipo de retorno final
-    Type* return_type = declared_return ? declared_return : lastType;
-    func_info->returnType = method_info->return_type = return_type;
-    lastType = return_type;
+    func_info->dinamicReturnType = lastType;
+    lastType = func_info->dinamicReturnType;
 
 }
 

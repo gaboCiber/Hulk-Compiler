@@ -6,7 +6,8 @@
 #include <string>
 
 struct SymbolInfo {
-    Type* type = nullptr;
+    Type* staticType = nullptr;
+    Type* dynamicType = nullptr;
     ASTNode* value = nullptr;
     llvm::Value* llvmValue = nullptr;
     bool isBuiltin = false;  // Nueva bandera

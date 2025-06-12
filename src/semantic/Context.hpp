@@ -21,7 +21,8 @@ struct BuiltinInfo {
 
 struct FunctionInfo {
     FunctionNode* node;
-    Type* returnType;
+    Type* dinamicReturnType;
+    Type* staticReturnType; 
     bool isBuiltin = false;
     BuiltinInfo* builtinInfo = nullptr; // Solo para built-ins
 };

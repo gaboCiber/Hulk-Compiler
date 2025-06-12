@@ -9,20 +9,19 @@ void TypeInferenceVisitor::putTypeOnVariables(ASTNode* node, Type* type){
 
     if (VariableNode* var = dynamic_cast<VariableNode*>(node)) {
         SymbolInfo* info = ctx.currentScope()->lookup(var->name);
-        if(info)
-        {
-            if (info->type == nullptr)
-                info->type = type;
-            else if((info->type->is_primitive() || type->is_primitive()) && info->type != type && type != ctx.object_type)
-            {
-                errorFlag = true;
-                errorMsg = "[Line " + std::to_string(var->line) + "] Error semántico: no se pudo inferir el tipo de la varaible '" + var->name + 
-                "'. Tipo esperado: '" + Type::TypeToString(info->type) + "'. Tipo inferido: '" + Type::TypeToString(type) + ".\n";
 
-            }
-            else if(info->type != ctx.object_type && !info->type->is_primitive())
-                info->type = ctx.type_registry.findLowestCommonAncestor(info->type, type);
+        if (info->dynamicType == nullptr)
+            info->dynamicType = type;
+        else if((info->dynamicType->is_primitive() || type->is_primitive()) && info->dynamicType != type && type != ctx.object_type)
+        {
+            errorFlag = true;
+            errorMsg = "[Line " + std::to_string(var->line) + "] Error semántico: no se pudo inferir el tipo de la varaible '" + var->name + 
+            "'. Tipo esperado: '" + Type::TypeToString(info->dynamicType) + "'. Tipo inferido: '" + Type::TypeToString(type) + ".\n";
+
         }
+        else if(info->dynamicType != ctx.object_type && !info->dynamicType->is_primitive())
+            info->dynamicType = ctx.type_registry.findLowestCommonAncestor(info->dynamicType, type);
+
     }
 }
 
@@ -121,20 +120,15 @@ void TypeInferenceVisitor::visit(BlockNode& node) {
 
 void TypeInferenceVisitor::visit(VariableNode& node) {
     
-    if(node.declared_type != "")
-        lastType = ctx.type_registry.get_type(node.declared_type);
-    else {
-        SymbolInfo* info = ctx.currentScope()->lookup(node.name);
-    
-        if (checkVariableType && info->type == nullptr) {
-            errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: " + "tipo no inferido para variable '" +  node.name + "' \n" ;
-        }
-    
-        lastType = info->type;
+    SymbolInfo* info = ctx.currentScope()->lookup(node.name);
+
+    if (checkVariableType && info->dynamicType == nullptr) {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: " + "tipo no inferido para variable '" +  node.name + "' \n" ;
     }
 
-    
+    lastType = info->dynamicType;
+
 }
 
 void TypeInferenceVisitor::visit(LetInNode& node) {
@@ -146,11 +140,15 @@ void TypeInferenceVisitor::visit(LetInNode& node) {
         if(errorFlag)
             return;
 
-        if(!pair.first->declared_type.empty())
-            lastType = ctx.type_registry.get_type(pair.first->declared_type);
-        
         SymbolInfo* info = ctx.currentScope()->lookup(pair.first->name);
-        info->type = lastType;
+
+        info->dynamicType = lastType;
+
+        if(!pair.first->declared_type.empty())
+        {
+            lastType = ctx.type_registry.get_type(pair.first->declared_type);
+        }
+
         std::cout<<lastType->name<<std::endl;
     }
         
@@ -185,6 +183,8 @@ void TypeInferenceVisitor::visit(FunctionNode& node) {
 
     FunctionInfo* info = ctx.lookupFunction(node.name);
     
+    info->dinamicReturnType = inferedType;
+
     if(node.declared_type != "")
         lastType = ctx.type_registry.get_type(node.declared_type);
     else
@@ -197,8 +197,6 @@ void TypeInferenceVisitor::visit(FunctionNode& node) {
         return;
     }
 
-    info->returnType = lastType;
-    
     ctx.popScope();
 }
 
@@ -235,7 +233,9 @@ void TypeInferenceVisitor::visit(CallFuncNode& node){
     } 
 
     if(node.functionName != "print")
-        lastType = info->returnType;
+    {
+        lastType = info->dinamicReturnType;
+    }
     
 }
 
@@ -366,12 +366,13 @@ void TypeInferenceVisitor::visit(AttributeNode& node){
         Type* declared = ctx.type_registry.get_type(node.declared_type);
         if (!declared) {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error: el tipo al atributo '" + node.getName() + "' no pudo ser inferido";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error: el tipo al atributo '" + node.getName() + "' no esta definido";
             return;
         }
 
         lastType = declared;
     }
+
     else if(!lastType)
     {
         errorFlag = true;

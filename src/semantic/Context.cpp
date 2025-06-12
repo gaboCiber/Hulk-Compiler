@@ -55,6 +55,7 @@ bool Context::defineBuiltinFunction(const std::string& name, Type* returnType, c
     functionTable[name] = {
         funcNode,
         returnType,
+        returnType,
         true,  // isBuiltin
         &builtinTable[name]
     };
@@ -76,7 +77,8 @@ bool Context::defineBuiltinConstant(const std::string& name, Type* type, ASTNode
     // Registrar en el scope global
     globalScope->define(name, value);
     auto* info = globalScope->localLookup(name);
-    info->type = type;
+    info->staticType = type;
+    info->dynamicType = type;
     info->isBuiltin = true;
     info->isConstant = true;
     
