@@ -825,8 +825,7 @@ void LLVMCodeGenVisitor::visit(TypeMember& node){
 }
 
 void LLVMCodeGenVisitor::visit(TypeNode& node){
-
-
+    
     push_current_type(ctx.type_registry.get_type(node.name));
 
     types_scope[node.name] = node.scope;
@@ -845,10 +844,11 @@ void LLVMCodeGenVisitor::visit(TypeNode& node){
 
     constructTypeMethodStructs(type);
 
-    type->llvm_type = defineTypeStruct(type);
-
     // Registrar tipo de vtable
     type->vtable_type = defineVTableType(type);
+
+
+    type->llvm_type = defineTypeStruct(type);
 
     // Procesar todos los miembros del tipo
     for (auto member : node.members) {
@@ -861,6 +861,7 @@ void LLVMCodeGenVisitor::visit(TypeNode& node){
 }
 
 llvm::Type* LLVMCodeGenVisitor::defineTypeStruct(Type* type) {
+
     if(type->llvm_type)
         return type->llvm_type;
 

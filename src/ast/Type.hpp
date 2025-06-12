@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <llvm/IR/Type.h>
+#include <llvm/IR/DerivedTypes.h>
 
 
 class Type;
@@ -25,6 +26,7 @@ public:
     Kind kind;
     std::string name;
     llvm::Type* llvm_type;
+    llvm::StructType* vtable_type = nullptr;
 
     // Solo para tipos objeto
     struct {
