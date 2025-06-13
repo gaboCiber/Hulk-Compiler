@@ -100,6 +100,7 @@ private:
     llvm::GlobalVariable* defineVTableGlobal(Type* type, llvm::Constant* vtableInstance);
     void constructTypeMethodStructs(Type* type);
     void declareAllMethods(Type* type);
+    std::pair<Type*, FunctionType*> resolveMethod(Type* type, const std::string& methodName);
 
 
     llvm::Type* defineTypeStruct(Type* type);
