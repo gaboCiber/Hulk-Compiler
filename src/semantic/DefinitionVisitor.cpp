@@ -84,6 +84,13 @@ void DefinitionVisitor::visit(ProgramNode& node) {
         
     }
     
+    if(node.statements.size() == 0)
+    {
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: no se definió ninguna expresión";
+        return;
+    }
+
     for (auto stmt : node.statements) {
         stmt->accept(*this);
         if(errorFlag)

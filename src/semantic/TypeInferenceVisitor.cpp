@@ -148,8 +148,6 @@ void TypeInferenceVisitor::visit(LetInNode& node) {
         {
             lastType = ctx.type_registry.get_type(pair.first->declared_type);
         }
-
-        std::cout<<lastType->name<<std::endl;
     }
         
     node.block->accept(*this);

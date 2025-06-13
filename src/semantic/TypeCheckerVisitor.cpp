@@ -208,7 +208,10 @@ void TypeCheckerVisitor::visit(FunctionNode& node) {
     Type* infered = lastType;
     FunctionInfo* info = ctx.lookupFunction(node.name);
 
-    if(infered != info->dinamicReturnType)
+    if(!info->dinamicReturnType)
+        info->dinamicReturnType = infered;
+
+    else if(infered != info->dinamicReturnType)
     {
         errorFlag = true;
         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo inferido (" + infered->name + ") de la funcion ' " + node.name + " ' es diferente a su lastype (" + lastType->name + ").\n" ;
