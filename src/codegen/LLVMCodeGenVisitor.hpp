@@ -99,6 +99,7 @@ private:
     llvm::Constant* createVTableInstance(Type* type);
     llvm::GlobalVariable* defineVTableGlobal(Type* type, llvm::Constant* vtableInstance);
     void constructTypeMethodStructs(Type* type);
+    void declareAllMethods(Type* type);
 
 
     llvm::Type* defineTypeStruct(Type* type);
