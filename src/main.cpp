@@ -15,7 +15,7 @@ int main() {
 
     if (yyparse() == 0 && root) {
         std::cout << "✅ Análisis sintáctico exitoso. AST:\n";
-        root->print();
+        //root->print();
 
         Context ctx;
 
@@ -29,8 +29,8 @@ int main() {
         root->accept(codegen);
 
         // Imprimir en consola
-        std::cout << "\n🔧 Código LLVM IR generado:\n";
-        codegen.getModule()->print(llvm::outs(), nullptr);
+        //std::cout << "\n🔧 Código LLVM IR generado:\n";
+        //codegen.getModule()->print(llvm::outs(), nullptr);
 
         // Guardar en archivo .ll
         std::error_code EC;
