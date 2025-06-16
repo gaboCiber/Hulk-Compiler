@@ -1,4 +1,5 @@
 #include "semantic/Context.hpp"
+#include <cmath>
 
 Context::Context() {
     globalScope = new Scope(nullptr); // raíz
@@ -20,8 +21,8 @@ Context::~Context() {
 
 void Context::initializeBuiltins() {
     // Constantes matemáticas
-    defineBuiltinConstant("PI", number_type, new FloatNode(3.141592653589793, -1));
-    defineBuiltinConstant("E", number_type, new FloatNode(2.718281828459045, -1));
+    defineBuiltinConstant("PI", number_type, new FloatNode(M_PI, -1));
+    defineBuiltinConstant("E", number_type, new FloatNode(M_E, -1));
 
     // Funciones matemáticas (todas toman y retornan Float)
     defineBuiltinFunction("sin", number_type, {number_type});
