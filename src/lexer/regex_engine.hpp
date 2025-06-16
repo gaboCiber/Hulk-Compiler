@@ -52,13 +52,27 @@ public:
         while (pos < input.size()) {
             bool matched = false;
 
+            // PRIMERO: Verificar patrones de error
+            for (const auto& err_pattern : error_patterns_) {
+                std::regex re(err_pattern);
+                std::smatch match;
+                std::string remaining = input.substr(pos);
+
+                if (std::regex_search(remaining, match, re,
+                                    std::regex_constants::match_continuous)) {
+                    throw std::runtime_error("Lexer error at line " + std::to_string(line) +
+                        ", column " + std::to_string(column) + ": Invalid token '" + match.str() + "'");
+                }
+            }
+
+            // SEGUNDO: Verificar patrones regulares
             for (const auto& rule : rules_) {
                 std::regex re(rule.pattern);
                 std::smatch match;
                 std::string remaining = input.substr(pos);
 
                 if (std::regex_search(remaining, match, re,
-                                      std::regex_constants::match_continuous)) {
+                                    std::regex_constants::match_continuous)) {
                     std::string lexeme = match.str();
                     std::size_t match_line = line;
                     std::size_t match_column = column;
@@ -77,18 +91,6 @@ public:
             }
 
             if (!matched) {
-                for (const auto& err_pattern : error_patterns_) {
-                    std::regex re(err_pattern);
-                    std::smatch match;
-                    std::string remaining = input.substr(pos);
-
-                    if (std::regex_search(remaining, match, re,
-                                          std::regex_constants::match_continuous)) {
-                        throw std::runtime_error("Lexer error at line " + std::to_string(line) +
-                            ", column " + std::to_string(column) + ": Invalid token '" + match.str() + "'");
-                    }
-                }
-
                 throw std::runtime_error("Lexer error at line " + std::to_string(line) +
                     ", column " + std::to_string(column) + ": Unexpected character '" + input[pos] + "'");
             }
@@ -96,7 +98,6 @@ public:
 
         return tokens;
     }
-
 private:
     std::vector<Rule> rules_;
     std::vector<std::string> error_patterns_;
