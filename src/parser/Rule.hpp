@@ -9,11 +9,12 @@ struct Rule {
     std::vector<Symbol<TokenType>> rhs;        // Cuerpo de la producción
     size_t id;                                 // ID único de la regla (opcional)
 
-    Rule(const Symbol<TokenType>& lhs_, const std::vector<Symbol<TokenType>>& rhs_, size_t id_ = 0)
+    Rule(const Symbol<TokenType>& lhs_, const std::vector<Symbol<TokenType>>& rhs_, size_t id_)
         : lhs(lhs_), rhs(rhs_), id(id_) {}
 
     Rule() : lhs(Symbol<TokenType>("", SymbolType::UNKNOWN)), rhs({}), id(0) {} // Default constructor
 
+    
 
     std::string to_string() const {
         std::string result = lhs.toString() + " → ";

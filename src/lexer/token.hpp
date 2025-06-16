@@ -26,6 +26,9 @@ struct Token {
     Token(TokenType t, TokenValue v, const std::string& lxm, std::size_t ln, std::size_t col)
         : type(t), value(std::move(v)), lexeme(lxm), line(ln), column(col) {}
 
+    std::string toSring() const {
+        return lexeme;
+    }
 };
 
 } // namespace lexer

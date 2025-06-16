@@ -27,9 +27,10 @@ public:
         for (const auto& term : grammar.terminals) {
             first_sets[term].insert(term);
         }
-        first_sets[SymbolT("ε", SymbolType::EPSILON)].insert(SymbolT("ε", SymbolType::EPSILON));
-        first_sets[SymbolT("$", SymbolType::END_MARKER)].insert(SymbolT("$", SymbolType::END_MARKER));
 
+        first_sets[grammar.end_symbol].insert(grammar.end_symbol);
+        first_sets[grammar.epsilon_symbol].insert(grammar.epsilon_symbol);
+        
         bool changed;
         do {
             changed = false;
@@ -37,8 +38,9 @@ public:
                 const SymbolT& A = rule.lhs;
                 const auto& production = rule.rhs;
 
-                if (production.empty() || is_epsilon(production[0])) {
-                    changed |= add_to_first(A, {SymbolT("ε", SymbolType::EPSILON)}, changed);
+                if (production.empty() || production[0].isEpsilon()) {
+                    //changed |= add_to_first(A, grammar.epsilon_symbol, changed);
+                    changed |= add_to_first(A, std::set<Symbol<TokenType>>{grammar.epsilon_symbol}, changed);
                     continue;
                 }
 
@@ -69,7 +71,8 @@ public:
                 }
 
                 if (all_derive_epsilon) {
-                    new_first.insert(SymbolT("ε", SymbolType::EPSILON));
+                    new_first.insert(grammar.epsilon_symbol);
+                    
                 }
 
                 changed |= add_to_first(A, new_first, changed);
@@ -78,7 +81,8 @@ public:
     }
 
     void compute_follow() {
-        follow_sets[grammar.start_symbol].insert(SymbolT("$", SymbolType::END_MARKER));
+        
+        follow_sets[grammar.start_symbol].insert(grammar.end_symbol);
 
         bool changed;
         do {
@@ -104,7 +108,7 @@ public:
                         bool has_epsilon = false;
                         std::set<SymbolT> to_add;
                         for (const auto& sym : first_beta) {
-                            if (is_epsilon(sym)) {
+                            if (sym.isEpsilon()) {
                                 has_epsilon = true;
                             } else {
                                 to_add.insert(sym);
@@ -112,7 +116,7 @@ public:
                         }
                         changed |= add_to_follow(B, to_add, changed);
 
-                        if (has_epsilon || (beta_first.isNonTerminal() && first_sets[beta_first].count(SymbolT("ε", SymbolType::EPSILON)))) {
+                        if (has_epsilon || (beta_first.isNonTerminal() && first_sets[beta_first].count(grammar.epsilon_symbol))) {
                             changed |= add_to_follow(B, follow_sets[A], changed);
                         }
                     } else {
@@ -124,35 +128,92 @@ public:
     }
 
     void build_parse_table() {
+        // Limpiar tabla existente
+        parse_table.clear();
+
         for (const auto& rule : grammar.rules) {
             const SymbolT& A = rule.lhs;
-            const std::vector<SymbolT>& alpha = rule.rhs;
+            const auto& production = rule.rhs;
 
-            std::set<SymbolT> first_alpha;
-            bool derives_epsilon = true;
-
-            for (const auto& X : alpha) {
-                const auto& first_X = first_sets[X];
-                for (const auto& sym : first_X) {
-                    if (!is_epsilon(sym))
-                        first_alpha.insert(sym);
-                }
-
-                if (first_X.find(SymbolT("ε", SymbolType::EPSILON)) == first_X.end()) {
-                    derives_epsilon = false;
-                    break;
-                }
-            }
-
-            for (const auto& a : first_alpha) {
-                parse_table[A][a.getTokenType().value()] = rule;
-            }
-
-            if (derives_epsilon || alpha.empty()) {
+            if( production.empty() || production[0].isEpsilon()) {
+                // Regla para producción epsilon
                 for (const auto& b : follow_sets[A]) {
-                    parse_table[A][b.getTokenType().value()] = rule;
+                    if (b.isTerminal() || b.isEndMarker()) {
+                        parse_table[A][*b.getTokenType()] = rule;
+                    }
                 }
+                continue;
             }
+
+            // Regla para producción no epsilon
+            const auto first_alpha = first_sets[production[0]];
+            for (const auto& a : first_alpha) {
+                if(a.isEpsilon())
+                {
+                    for(const auto& b : follow_sets[A])
+                    {
+                        if(b.isTerminal() || b.isEndMarker())
+                        {
+                            parse_table[A][*b.getTokenType()] = rule;
+                        }
+                    }
+                }
+                else if (a.isTerminal()) {
+                    parse_table[A][*a.getTokenType()] = rule;
+                }
+                
+            }
+
+            // // Calcular FIRST(production)
+            // std::set<SymbolT> first_alpha;
+            // bool derives_epsilon = true;
+
+            // for (const auto& X : production) {
+            //     const auto& first_X = first_sets[X];
+                
+            //     // Agregar todos los símbolos excepto épsilon
+            //     for (const auto& sym : first_X) {
+            //         if (!is_epsilon(sym)) {
+            //             first_alpha.insert(sym);
+            //         }
+            //     }
+                
+            //     // Verificar si X puede derivar épsilon
+            //     if (first_X.find(SymbolT("ε", SymbolType::EPSILON)) == first_X.end()) {
+            //         derives_epsilon = false;
+            //         break;
+            //     }
+            // }
+
+            // // Si toda la producción puede derivar épsilon
+            // if (derives_epsilon) {
+            //     first_alpha.insert(SymbolT("ε", SymbolType::EPSILON));
+            // }
+
+            // // Regla 1: Para cada terminal 'a' en FIRST(alpha)
+            // for (const auto& a : first_alpha) {
+            //     if ( a.isTerminal() && a.getTokenType() ) {
+            //         parse_table[A][*a.getTokenType()] = rule;
+            //     }
+            //     else if (a.isEndMarker())
+            //     {
+            //         parse_table[A][*a.getTokenType()] = rule;
+            //     }
+                
+            // }
+
+            // // Regla 2: Si épsilon está en FIRST(alpha)
+            // if (derives_epsilon) {
+            //     for (const auto& b : follow_sets[A]) {
+            //         if (b.isTerminal() && b.getTokenType()) {
+            //             parse_table[A][*b.getTokenType()] = rule;
+            //         }
+            //         else if (b.isEndMarker())
+            //         {
+            //             parse_table[A][*b.getTokenType()] = rule;
+            //         }
+            //     }
+            // }
         }
     }
 
@@ -199,104 +260,290 @@ public:
         }
     }
 
-    void print_parse_table() const  {
+    void print_parse_table() const {
         std::cout << "Parse table:\n";
         for (const auto& [nt, row] : parse_table) {
-            for (const auto& [t, rule] : row) {
-                std::cout << "M[" << nt.getName() << ", " << t << "] = "
+            for (const auto& [token_type, rule] : row) {
+                std::cout << "M[" << nt.getName() << ", " << token_type << "] = "
                         << rule.lhs.getName() << " → ";
-                for (const auto& sym : rule.rhs)
-                    std::cout << sym.getTokenType().value_or(TokenType{}) << " ";
-                std::cout << std::endl;
+                for (const auto& sym : rule.rhs) {
+                    if (sym.isEpsilon()) {
+                        std::cout << "ε ";
+                    } else {
+                        std::cout << sym.getName() << " ";
+                    }
+                }
+                std::cout << "\n";
             }
         }
     }
 
-    ASTNodePtr parse(MyLexer& lexer) {
+    // ASTNodePtr parse(MyLexer& lexer) {
+    //     lexer.tokenize();
         
-        std::cout<<"Empezando a parsear"<<std::endl;
+    //     // Definir tipos para elementos de la pila
+    //     using Action = std::function<void()>;
+    //     using StackElement = std::variant<Symbol<TokenType>, Action>;
+        
+    //     // Pila de análisis (símbolos y acciones)
+    //     std::stack<StackElement> parse_stack;
+    //     parse_stack.push(grammar.end_symbol);
+    //     parse_stack.push(grammar.start_symbol);
 
-        std::cout<<"Start symbol: "<<grammar.start_symbol.getName();
+    //     // Pila de valores para construcción del AST
+    //     std::stack<ASTNodePtr> value_stack;
         
-        std::stack<Symbol<TokenType>> parse_stack;
-        parse_stack.push(Symbol<TokenType>("$", SymbolType::END_MARKER));
+    //     auto current_token = lexer.next_token();
+
+    //     while (!parse_stack.empty()) {
+    //         if(current_token)
+    //             std::cout<<"Token: "<< current_token.value().lexeme << " Type: "<<current_token.value().type<<std::endl;
+    //         else
+    //             std::cout<<"<END>"<<std::endl;
+
+    //         StackElement top_element = parse_stack.top();
+    //         parse_stack.pop();
+
+    //         // Caso 1: Es una acción semántica
+    //         if (std::holds_alternative<Action>(top_element)) {
+                
+    //             std::cout<<"Ejecutando accion semántica..."<<std::endl;
+
+    //             auto action = std::get<Action>(top_element);
+    //             action();  // Ejecutar la acción
+    //             continue;
+    //         }
+
+    //         // Caso 2: Es un símbolo
+    //         Symbol<TokenType> top = std::get<Symbol<TokenType>>(top_element);
+    //         std::cout<<"Top: "<< top.getName()<<std::endl;
+
+    //         std::cout<<"1: is endMarker?"<<std::endl;
+    //         // 1. Manejar símbolo de fin
+    //         if (top.isEndMarker()) {
+    //             if (!current_token) break;
+    //             throw std::runtime_error("Fin de entrada esperado");
+    //         }
+
+    //         std::cout<<"2: is empty?"<<std::endl;
+    //         // 2. Manejar épsilon
+    //         if (top.isEpsilon()) {
+    //             continue;
+    //         }
+
+    //         std::cout<<"3: is terminal?"<<std::endl;
+    //         // 3. Terminales - CONSUMIR TOKEN Y EJECUTAR ACCIÓN SI EXISTE
+    //         if (top.isTerminal()) {
+    //             if (!current_token) {
+    //                 throw std::runtime_error("Token esperado pero se encontró fin de entrada");
+    //             }
+
+    //             std::cout<<"3.1: matchea con el token actual?"<<std::endl;
+    //             if (top.matches(current_token->type)) {
+    //                 std::cout<<"3.2: Matchea!"<<std::endl;
+    //                 // Obtener acción asociada al símbolo terminal
+    //                 if (auto action = grammar.get_action_for_sym_rule(top)) {
+    //                     std::cout<<"3.3: Ejecutando acción semántica para terminal: "<< top.getName() <<std::endl;
+    //                     // Ejecutar acción y apilar resultado
+    //                     if (auto node = action(*current_token)) {
+    //                         value_stack.push(node);
+    //                     }
+    //                 }
+                    
+    //                 current_token = lexer.next_token();
+    //             } else {
+    //                 throw std::runtime_error(
+    //                     "Token inesperado: " + current_token->lexeme + 
+    //                     ", se esperaba: " + top.getName()
+    //                 );
+    //             }
+    //             continue;
+    //         }
+
+    //         std::cout<<"4: No terminales"<<std::endl;
+    //         // 4. No terminales - APLICAR REGLA Y PROGRAMAR ACCIÓN
+    //         TokenType token_type = current_token ? current_token->type : TokenType::END;
+            
+    //         std::cout<<"4.1: Obteniendo regla"<<std::endl;
+    //         const auto& rule = get_rule(top, token_type);
+            
+    //         std::cout<<"4.2: Regla obtenida: " << rule.to_string() << std::endl;
+    //         // Crear acción semántica si existe
+    //         std::optional<Action> rule_action;
+    //         if (auto action_func = grammar.get_action_for_rule(rule.id)) {
+    //             std::cout<<"4.3: Acción semántica encontrada para la regla: " << rule.id << std::endl;
+    //             // Calcular cuántos hijos necesita esta regla
+    //             size_t num_children = 0;
+    //             for (const auto& sym : rule.rhs) {
+    //                 if (!sym.isEpsilon()) num_children++;
+    //             }
+                
+    //             std::cout<<"4.4: Número de hijos necesarios: " << num_children << std::endl;
+    //             // Crear acción que se ejecutará cuando la regla esté completa
+    //             // rule_action = [=, &value_stack, action_func]() {
+    //             //     // Recolectar hijos de la pila de valores
+    //             //     std::vector<ASTNodePtr> children;
+    //             //     for (size_t i = 0; i < num_children; i++) {
+    //             //         if (value_stack.empty()) {
+    //             //             throw std::runtime_error("Pila de valores insuficiente para la regla " + rule.to_string());
+    //             //         }
+    //             //         children.insert(children.begin(), value_stack.top());
+    //             //         value_stack.pop();
+    //             //     }
+
+    //             //     // Ejecutar acción con los hijos recolectados
+    //             //     ASTNodePtr result = action_func(children, lexer::Token<TokenType>{});
+    //             //     if (result) {
+    //             //         value_stack.push(result);
+    //             //     }
+    //             // };
+
+    //             // Dentro de las acciones semánticas de reglas:
+    //             rule_action = [=, &value_stack, action_func]() {
+    //                 std::vector<ASTNodePtr> children;
+    //                 for (size_t i = 0; i < num_children; i++) {
+    //                     if (value_stack.empty()) {
+    //                         throw std::runtime_error("Pila de valores insuficiente para la regla " + rule.to_string());
+    //                     }
+                        
+    //                     // Solo recolectar valores no nulos
+    //                     if (value_stack.top()) {
+    //                         children.insert(children.begin(), value_stack.top());
+    //                     }
+    //                     value_stack.pop();
+    //                 }
+
+    //                 ASTNodePtr result = action_func(children, lexer::Token<TokenType>{});
+    //                 if (result) {
+    //                     value_stack.push(result);
+    //                 }
+    //             };
+
+    //             std::cout<<"4.5: Acción semántica programada para la regla: " << rule.id << std::endl;
+    //         }
+
+    //         std::cout<<"5: Apilando símbolos de la regla"<< rule.id <<std::endl;
+    //         // Empilar acción semántica si existe (será ejecutada después de los símbolos)
+    //         if (rule_action) {
+    //             parse_stack.push(*rule_action);
+    //         }
+
+    //         std::cout<<"6: Apilando simbolos de la produccion"<< rule.id<<std::endl;
+    //         // Empilar símbolos de la producción en orden inverso
+    //         // CON ACCIÓN SEMÁNTICA INSERTADA AL FINAL
+    //         for (auto it = rule.rhs.rbegin(); it != rule.rhs.rend(); ++it) {
+    //             if (!it->isEpsilon()) {
+    //                 parse_stack.push(*it);
+    //             }
+    //         }
+            
+    //     }
+
+    //     // Verificar que no queden tokens sin consumir
+    //     if (current_token) {
+    //         throw std::runtime_error("Entrada no completamente consumida");
+    //     }
+
+    //     // El resultado final está en el tope de la pila de valores
+    //     return value_stack.empty() ? nullptr : value_stack.top();
+    // }
+
+    ASTNodePtr parse(MyLexer& lexer) {
+        lexer.tokenize();
+        
+        using Action = std::function<void()>;
+        using StackElement = std::variant<Symbol<TokenType>, Action>;
+        
+        std::stack<StackElement> parse_stack;
+        parse_stack.push(grammar.end_symbol);
         parse_stack.push(grammar.start_symbol);
 
-        std::stack<ASTNodePtr> value_stack;  // Para construir el AST
-        std::optional<lexer::Token<TokenType>> current_token = lexer.next_token();
-        std::optional<lexer::Token<TokenType>> last_terminal_token;  // Guarda el último terminal consumido
+        std::stack<ASTNodePtr> value_stack;
+        auto current_token = lexer.next_token();
 
         while (!parse_stack.empty()) {
-            Symbol<TokenType> top = parse_stack.top();
+            StackElement top_element = parse_stack.top();
+            parse_stack.pop();
 
-            std::cout<<"Analizando token: "<< current_token.value().lexeme;
+            if (std::holds_alternative<Action>(top_element)) {
+                auto action = std::get<Action>(top_element);
+                action();
+                continue;
+            }
 
-            // Caso 1: Símbolo terminal o fin de entrada
-            if (top.isTerminal() || top.getType() == SymbolType::END_MARKER) {
-                if (top.getType() == SymbolType::END_MARKER && 
-                    current_token == std::nullopt) {
-                    parse_stack.pop();  // Consumimos el $
-                    break;
+            Symbol<TokenType> top = std::get<Symbol<TokenType>>(top_element);
+
+            if (top.isEndMarker()) {
+                if (!current_token) break;
+                throw std::runtime_error("Fin de entrada esperado");
+            }
+
+            if (top.isEpsilon()) {
+                continue;
+            }
+
+            if (top.isTerminal()) {
+                if (!current_token) {
+                    throw std::runtime_error("Token esperado pero se encontró fin de entrada");
                 }
-
-                if(current_token == std::nullopt)
-                    throw std::runtime_error(
-                        "Error de sintaxis: Se esperaba '" + top.getName() + 
-                        "' pero se encontró el fin de la cadena'"
-                    );
 
                 if (top.matches(current_token->type)) {
-                    // Guardamos tokens relevantes para acciones semánticas
-                    if (top.getName() == "number" || top.getName() == "id") {
-                        last_terminal_token = current_token;
-                    }
-                    
-                    parse_stack.pop();
-                    current_token = lexer.next_token();
-                } else {
-                    throw std::runtime_error(
-                        "Error de sintaxis: Se esperaba '" + top.getName() + 
-                        "' pero se encontró '" + current_token->lexeme + "'"
-                    );
-                }
-            }
-            // Caso 2: Símbolo no terminal
-            else {
-                const auto& rule = get_rule(top, current_token->type);
-                parse_stack.pop();
-
-                // Aplicar regla en orden inverso (para pila)
-                for (auto it = rule.rhs.rbegin(); it != rule.rhs.rend(); ++it) {
-                    if (!it->isEpsilon()) {
-                        parse_stack.push(*it);
-                    }
-                }
-
-                // Ejecutar acción semántica si existe
-                auto action = grammar.get_action_for_rule(rule.id);
-                if ( action ) {
-                    std::vector<ASTNodePtr> children;
-                    for (size_t i = 0; i < rule.rhs.size(); ++i) {
-                        if (!value_stack.empty()) {
-                            children.push_back(value_stack.top());
-                            value_stack.pop();
+                    if (auto action = grammar.get_action_for_sym_rule(top)) {
+                        if (auto node = action(*current_token)) {
+                            value_stack.push(node);
                         }
                     }
-                    std::reverse(children.begin(), children.end());
+                    current_token = lexer.next_token();
+                } else {
+                    throw std::runtime_error("Token inesperado: " + current_token->lexeme);
+                }
+                continue;
+            }
 
-                    ASTNodePtr result = action(
-                        children,
-                        last_terminal_token.value_or(lexer::Token<TokenType>{})
-                    );
-                    value_stack.push(result);
+            TokenType token_type = current_token ? current_token->type : TokenType::END;
+            const auto& rule = get_rule(top, token_type);
+            
+            std::optional<Action> rule_action;
+            if (auto action_func = grammar.get_action_for_rule(rule.id)) {
+                size_t expected_values = 0;
+                for (const auto& sym : rule.rhs) {
+                    if (!sym.isEpsilon() && grammar.has_action_for_sym_rule(sym)) {
+                        expected_values++;
+                    }
+                }
+                
+                rule_action = [=, &value_stack, action_func]() {
+                    std::vector<ASTNodePtr> children;
+                    for (size_t i = 0; i < expected_values; i++) {
+                        if (value_stack.empty()) {
+                            throw std::runtime_error("Pila de valores insuficiente");
+                        }
+                        children.insert(children.begin(), value_stack.top());
+                        value_stack.pop();
+                    }
+
+                    if (auto result = action_func(children, lexer::Token<TokenType>{})) {
+                        value_stack.push(result);
+                    }
+                };
+            }
+
+            if (rule_action) {
+                parse_stack.push(*rule_action);
+            }
+
+            for (auto it = rule.rhs.rbegin(); it != rule.rhs.rend(); ++it) {
+                if (!it->isEpsilon()) {
+                    parse_stack.push(*it);
                 }
             }
         }
 
-        if (!value_stack.empty()) {
-            return value_stack.top();  // Retorna el AST completo
+        if (current_token) {
+            throw std::runtime_error("Entrada no completamente consumida");
         }
-        return nullptr;  // En caso de error
+
+        return value_stack.empty() ? nullptr : value_stack.top();
     }
 
 private:
@@ -304,10 +551,6 @@ private:
     std::map<SymbolT, std::set<SymbolT>> first_sets;
     std::map<SymbolT, std::set<SymbolT>> follow_sets;
     std::map<SymbolT, std::map<TokenType, RuleT>> parse_table;
-
-    bool is_epsilon(const SymbolT& sym) const {
-        return sym.getName() == "ε"; // o usa un campo tipo EPSILON si lo defines
-    }
 
     bool add_to_first(const SymbolT& A, const std::set<SymbolT>& symbols, bool& changed) {
         bool modified = false;

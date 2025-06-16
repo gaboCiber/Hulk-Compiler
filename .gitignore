@@ -1,6 +1,7 @@
 # === Ignorar carpeta de compilación ===
 build/
 hulk/
+Test/
 
 # === Archivos temporales y de backup ===
 *.o

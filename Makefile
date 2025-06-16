@@ -50,6 +50,9 @@ SCRIPT_FILE = script.hulk
 LLVM_IR = $(OUT_DIR)/output.ll
 LLVM_S = $(OUT_DIR)/output.s
 
+# Variable para archivo personalizado (nueva)
+FILE ?= $(SCRIPT_FILE)
+
 # === TARGETS ===
 
 all: compile
@@ -62,7 +65,7 @@ compile: build
 	@echo "🚀 Ejecutando script.hulk y generando IR..."
 	@$(EXEC) < $(SCRIPT_FILE)
 	@$(LLC) $(LLVM_IR) -o $(LLVM_S)
-	@$(CC) -c $(RUNTIME_SRC) -o $(RUNTIME_OBJ)     
+	@$(CC) -c $(RUNTIME_SRC) -o $(RUNTIME_OBJ)
 	@$(CLANG) -fPIE -no-pie $(LLVM_S) $(RUNTIME_OBJ) -o $(OUT_DIR)/output $(LLVM_LDFLAGS)
 
 execute: compile
@@ -70,6 +73,20 @@ execute: compile
 	@./$(OUT_DIR)/output
 
 run:
+	@./$(OUT_DIR)/output
+
+# Nueva regla para ejecutar un archivo específico
+exepath: $(EXEC) $(RUNTIME_OBJ)
+	@if [ -z "$(FILE)" ]; then \
+		echo "Error: FILE no definido. Uso: make exepath FILE=ruta/archivo.hulk"; \
+		exit 1; \
+	fi
+	@rm -f $(LLVM_IR) $(LLVM_S) $(OUT_DIR)/output
+	@echo "🚀 Compilando $(FILE) ..."
+	@$(EXEC) < $(FILE)
+	@$(LLC) $(LLVM_IR) -o $(LLVM_S)
+	@$(CLANG) -fPIE -no-pie $(LLVM_S) $(RUNTIME_OBJ) -o $(OUT_DIR)/output $(LLVM_LDFLAGS)
+	@echo "🚀 Ejecutando $(FILE) ..."
 	@./$(OUT_DIR)/output
 
 clean:
@@ -116,4 +133,4 @@ $(SCRIPT_FILE):
 	@if [ ! -f "$(SCRIPT_FILE)" ]; then touch "$(SCRIPT_FILE)"; fi
 
 # === META ===
-.PHONY: all compile run clean
+.PHONY: all compile run clean exepath execute
