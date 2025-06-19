@@ -94,13 +94,19 @@ void UsageCheckerVisitor::visit(ProgramNode& node) {
     for (auto stmt : node.functions_and_types) {
         stmt->accept(*this);
         if(errorFlag)
-            return;
+        {
+            errorList.push_back(errorMsg);
+            errorFlag = false;
+        }
     }
 
     for (auto stmt : node.statements) {
         stmt->accept(*this);
         if(errorFlag)
-            return;
+        {
+            errorList.push_back(errorMsg);
+            errorFlag = false;
+        }
     }
 }
 
@@ -108,7 +114,7 @@ void UsageCheckerVisitor::visit(CallFuncNode& node){
     
     if(ctx.lookupFunction(node.functionName) == nullptr){
         errorFlag = true;
-        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: función '" + node.functionName +  "' no definida.\n";
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: la función '" + node.functionName +  "' no ha sido definida.\n";
         return;
     }
 

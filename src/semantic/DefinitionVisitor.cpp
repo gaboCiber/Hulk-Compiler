@@ -65,37 +65,46 @@ void DefinitionVisitor::visit(FunctionNode& node) {
 
 void DefinitionVisitor::visit(ProgramNode& node) {
     for (auto stmt : node.functions_and_types) {
-        if(auto func = static_cast<FunctionNode*>(stmt)){
+        if(auto func =  dynamic_cast<FunctionNode*>(stmt)){
             if (!ctx.defineFunction(func->name, func)) {
-                errorFlag = true;
                 errorMsg = "[Line " + std::to_string(stmt->line) + "] Error semántico: la función '" + func->name + "' ya fue definida.";
-                return;
+                errorList.push_back(errorMsg);
             }
 
             stmt->accept(*this);
             if(errorFlag)
-                return;
+            {
+                errorList.push_back(errorMsg);
+                errorFlag = false;
+            }
         }
-        else if(auto type = static_cast<TypeNode*>(stmt)){
+        else if(auto type = dynamic_cast<TypeNode*>(stmt)){
             type->accept(*this);
             if(errorFlag)
-                return;
+            {
+                errorList.push_back(errorMsg);
+                errorFlag = false;
+            }
         }
         
     }
     
     if(node.statements.size() == 0)
     {
-        errorFlag = true;
         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: no se definió ninguna expresión";
+        errorList.push_back(errorMsg);
         return;
     }
 
     for (auto stmt : node.statements) {
         stmt->accept(*this);
         if(errorFlag)
-            return;
+        {
+            errorList.push_back(errorMsg);
+            errorFlag = false;
+        }
     }
+
 }
 
 void DefinitionVisitor::visit(CallFuncNode& node){

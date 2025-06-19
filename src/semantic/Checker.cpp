@@ -5,20 +5,29 @@ bool Checker::runSemanticAnalysis(ASTNode* root, Context& ctx) {
     // Primera pasada: definición de variables y scopes
     DefinitionVisitor def(ctx);
     root->accept(def);
-    if (def.hasError()) {
-        std::cerr << "❌ " << def.getError() << std::endl;
-        return false;
-    }
-    std::cout << "✅ Scopes definidos correctamente.\n";
 
-    // Segunda pasada: uso de variables
     UsageCheckerVisitor usage(ctx);
     root->accept(usage);
-    if (usage.hasError()) {
-        std::cerr << "❌ " << usage.getError() << std::endl;
-        return false;
+
+    bool ret = false;
+    
+    if (def.hasError()) {
+        def.printError();
+        ret = true;
     }
-    std::cout << "✅ Uso de variables válido.\n";
+    else
+        std::cout << "✅ Scopes definidos correctamente.\n";
+    
+        
+    if (usage.hasError()) {
+        usage.printError();
+        ret = true;
+    }
+    else
+        std::cout << "✅ Uso de variables válido.\n";
+
+    if(ret)
+        return false;
 
     // Cuarta pasada: inferencia de tipos
     TypeInferenceVisitor inference(ctx);

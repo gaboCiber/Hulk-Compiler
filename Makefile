@@ -6,7 +6,7 @@ LLC = llc
 CLANG = clang
 CC = gcc
 
-CXXFLAGS = -Wall -std=c++17 -Isrc -Isrc/ast -Ihulk/parser
+CXXFLAGS = -g -Wall -std=c++17 -Isrc -Isrc/ast -Ihulk/parser
 
 # LLVM
 LLVM_CONFIG = llvm-config
