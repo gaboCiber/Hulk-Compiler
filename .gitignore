@@ -30,3 +30,8 @@ script.hulk.ll
 # === Entornos de desarrollo (VSCode, JetBrains, etc.) ===
 .vscode/
 .idea/
+
+# === Informe
+docs/**
+!docs/Informe.pdf
+!docs/Informe.tex
