@@ -43,14 +43,22 @@ public:
 
     void checkBuiltinCall(CallFuncNode& node);
 
-    bool hasError() const { return errorFlag; }
-    const std::string& getError() const { return errorMsg; }
+    bool hasError() const { return errorList.size() > 0; }
+    void printError() { 
+        std::string finalMsg = "";
+        for (auto msg : errorList)
+            finalMsg += "❌ " + msg + "\n";  
+
+        std::cerr<<finalMsg;  
+    }
+
     Type* getType() const { return lastType; }
 
 private:
     Type* lastType;
     bool errorFlag = false;
     std::string errorMsg;
+    std::vector<std::string> errorList;
 
     std::stack<Type*> current_type_stack;
     

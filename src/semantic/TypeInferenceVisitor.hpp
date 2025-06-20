@@ -41,14 +41,22 @@ public:
     void visit(IsNode& node) override;
     void visit(AsNode& node) override;
 
-    bool hasError() const { return errorFlag; }
-    const std::string& getError() const { return errorMsg; }
+    bool hasError() const { return errorList.size() > 0; }
+    void printError() { 
+        std::string finalMsg = "";
+        for (auto msg : errorList)
+            finalMsg += "❌ " + msg + "\n";  
+
+        std::cerr<<finalMsg;  
+    }
+
     Type* getType() const { return lastType; }
 
 private:
     Type* lastType = nullptr;
     bool errorFlag = false;
     std::string errorMsg;
+    std::vector<std::string> errorList;
 
 
     bool checkVariableType = false;

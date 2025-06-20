@@ -33,7 +33,7 @@ bool Checker::runSemanticAnalysis(ASTNode* root, Context& ctx) {
     TypeInferenceVisitor inference(ctx);
     root->accept(inference);
     if (inference.hasError()) {
-        std::cerr << "❌ " << inference.getError() << std::endl;
+        inference.printError();
         return false;
     }
     std::cout << "✅ Tipos inferidos correctamente.\n";
@@ -42,7 +42,7 @@ bool Checker::runSemanticAnalysis(ASTNode* root, Context& ctx) {
     TypeCheckerVisitor types(ctx);
     root->accept(types);
     if (types.hasError()) {
-        std::cerr << "❌ " << types.getError() << std::endl;
+        types.printError();
         return false;
     }
     std::cout << "✅ Tipos verificados correctamente.\n";

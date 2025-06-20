@@ -249,13 +249,19 @@ void TypeCheckerVisitor::visit(ProgramNode& node) {
     for (auto stmt : node.functions_and_types) {
         stmt->accept(*this);
         if(errorFlag)
-            return;
+        {
+            errorList.push_back(errorMsg);
+            errorFlag = false;
+        }
     }
 
     for (auto stmt : node.statements) {
         stmt->accept(*this);
         if(errorFlag)
-            return;
+        {
+            errorList.push_back(errorMsg);
+            errorFlag = false;
+        }
     }
 } 
 
