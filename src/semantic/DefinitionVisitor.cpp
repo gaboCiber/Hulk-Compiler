@@ -160,7 +160,7 @@ void DefinitionVisitor::visit(TypeNode& node){
         args.emplace_back(arg->name);
 
     // Registrar el tipo principal
-    auto msg = ctx.type_registry.register_user_type(node.name, args , node.inherits ? node.inherits->parent_type : "Object");
+    auto msg = ctx.type_registry.register_user_type(node.name, args);
 
     if (msg != "") {
         errorFlag = true;

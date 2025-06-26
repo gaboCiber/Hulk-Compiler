@@ -1,0 +1,7 @@
+type B inherits A {
+};
+
+type A {
+};
+
+let x = new A() in print("PAN");

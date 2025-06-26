@@ -203,8 +203,8 @@ void UsageCheckerVisitor::visit(TypeNode& node){
         return;
     }
 
-
-    push_current_type(ctx.type_registry.get_type(node.name));
+    Type* current = ctx.type_registry.get_type(node.name);
+    push_current_type(current);
     ctx.pushScope(node.scope);
 
     for (auto arg : *node.type_args){
@@ -213,24 +213,15 @@ void UsageCheckerVisitor::visit(TypeNode& node){
             return;
     }
 
-    if(node.inherits != nullptr)
+    if(node.inherits)
     {
         node.inherits->accept(*this);
         if(errorFlag)
             return;
-
-        // Verificar que no se herede de tipos primitivos
-        Type* parent = ctx.type_registry.get_type(node.inherits->parent_type);
-        if (parent->is_primitive()) {
-            errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: No se puede heredar de tipo primitivo";
-            return;
-        }
     }
     else
     {
-        Type* current = get_current_type();
-        current->object_data.parent = ctx.object_type;
+        ctx.type_registry.register_parent(current, ctx.object_type);
     }
 
     for(auto member: node.members){
@@ -271,7 +262,7 @@ void UsageCheckerVisitor::visit(InheritsNode& node){
         return;
     }
 
-    current->object_data.parent = type;
+    ctx.type_registry.register_parent(current, type);
 
     if (node.parent_args) {
         for (auto arg : *node.parent_args) {
@@ -355,14 +346,22 @@ void UsageCheckerVisitor::visit(MemberAccessNode& node){
         errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: la instrucción ' self ' solo puede ser utilizado en una declaración de tipos. \n";
     }
 
-    auto attrs_info = get_current_type()->object_data.attributes;
     
-    if(attrs_info.find(node.member_name) == attrs_info.end())
+    
+    auto current = get_current_type();
+    while (current)
     {
-        errorFlag = true;
-        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo ' " +  get_current_type()->name + "' no posee un atributo llamado ' " + node.member_name + " ' .\n'";
-        return;
+        auto attrs_info = current->object_data.attributes;
+        if(attrs_info.find(node.member_name) != attrs_info.end())
+        {
+            return;
+        }
+
+        current = current->object_data.parent;
     }
+
+    errorFlag = true;
+    errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: el tipo ' " +  get_current_type()->name + "' no posee un atributo llamado ' " + node.member_name + " ' .\n'";
 
 }
 

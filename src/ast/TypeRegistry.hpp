@@ -9,13 +9,15 @@ public:
     TypeRegistry();
 
     // Registra un tipo definido por el usuario
-    std::string register_user_type(const std::string& name, const std::vector<std::string> arguments, const std::string& parent_name = "Object");
+    std::string register_user_type(const std::string& name, const std::vector<std::string> arguments);
 
     // Registra un atributo en un tipo
     void register_attribute(const std::string& type_name, const std::string& attr_name, Type* attr_type);
 
     // Registra un método en un tipo
     void register_method(const std::string& type_name, const std::string& method_name, FunctionType* method_type);
+
+    void register_parent(Type* type, Type* parent);
 
     // Obtiene un tipo por nombre
     Type* get_type(const std::string& name) const;
@@ -27,7 +29,6 @@ public:
     Type* findLowestCommonAncestor(Type* type1, Type* type2) const;
  
 private:
-    bool is_sealed(const std::string& type_name) const ;
     std::vector<Type*> getAncestors(Type* type) const;
 
 };

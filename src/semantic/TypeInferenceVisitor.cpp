@@ -316,8 +316,6 @@ void TypeInferenceVisitor::visit(TypeMember& node){
 
 void TypeInferenceVisitor::visit(TypeNode& node){
     
-    // Registrar el tipo ya se hizo en DefinitionVisito
-
     push_current_type(node.name);
     ctx.pushScope(node.scope);
     
@@ -459,14 +457,19 @@ void TypeInferenceVisitor::visit(MemberAccessNode& node) {
     }
 
     // Verifica que el atributo exista
-    auto& attributes = objectType->object_data.attributes;
-    if (attributes.find(node.member_name) == attributes.end()) {
-        errorFlag = true;
-        errorMsg = "[Line " + std::to_string(node.line) + "] Error: el atributo '" + node.member_name + "' no existe en el tipo '" + objectType->name + "'";
-        return;
+    auto current = objectType;
+    while (current)
+    {
+        auto attrs_info = current->object_data.attributes;
+        if(attrs_info.find(node.member_name) != attrs_info.end())
+        {
+            break;
+        }
+
+        current = current->object_data.parent;
     }
 
-    lastType = attributes[node.member_name];
+    lastType = current->object_data.attributes[node.member_name];
     if (!lastType) {
         errorFlag = true;
         errorMsg = "[Line " + std::to_string(node.line) + "] Error: no se pudo inferir el tipo del atributo '" + node.member_name + "'";

@@ -2,14 +2,14 @@
 CXX = g++
 FLEX = flex
 BISON = bison
-LLC = llc
-CLANG = clang
+LLC = llc-14
+CLANG = clang-14
 CC = gcc
 
 CXXFLAGS = -g -Wall -std=c++17 -Isrc -Isrc/ast -Ihulk/parser
 
 # LLVM
-LLVM_CONFIG = llvm-config
+LLVM_CONFIG = llvm-config-14
 LLVM_CXXFLAGS = $(shell $(LLVM_CONFIG) --cxxflags)
 LLVM_LDFLAGS  = $(shell $(LLVM_CONFIG) --ldflags --libs core) -Wno-unused-command-line-argument -lm
 
@@ -131,6 +131,10 @@ $(MAIN_OBJ): $(MAIN_SRC)
 # Verificar o crear script.hulk vacío
 $(SCRIPT_FILE):
 	@if [ ! -f "$(SCRIPT_FILE)" ]; then touch "$(SCRIPT_FILE)"; fi
+
+$(RUNTIME_OBJ): $(RUNTIME_SRC)
+	@mkdir -p $(dir $@)
+	$(CC) -c $< -o $@
 
 # === META ===
 .PHONY: all compile run clean exepath execute

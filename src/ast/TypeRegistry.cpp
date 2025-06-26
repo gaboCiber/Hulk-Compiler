@@ -13,26 +13,22 @@ TypeRegistry::TypeRegistry() {
 }
 
 // Registra un tipo definido por el usuario
-std::string TypeRegistry::register_user_type(const std::string& name, const std::vector<std::string> arguments, const std::string& parent_name) {
+std::string TypeRegistry::register_user_type(const std::string& name, const std::vector<std::string> arguments) {
     
-    if (is_sealed(parent_name)) {
-        return "No se puede heredar del tipo sellado ' " + parent_name + " '.";
-    }
 
     if(types_.find(name) != types_.end())
     {
         return "El tipo ' " + name + " ' ya fue declarado.";
     }
-
-    Type* parent = get_type(parent_name);
     
-    if (!parent) {
-        return "El tipo padre ' " + parent_name + " ' no existe.";
-    }
 
-    types_[name] = Type::create_object(name, arguments, parent);
+    types_[name] = Type::create_object(name, arguments);
 
     return "";
+}
+
+void TypeRegistry::register_parent(Type* type, Type* parent){
+    type->object_data.parent = parent;
 }
 
 // Registra un atributo en un tipo
@@ -58,11 +54,6 @@ Type* TypeRegistry::get_type(const std::string& name) const {
         return nullptr;
     }
     return it->second.get();
-}
-
-// Verifica si se puede heredar
-bool TypeRegistry::is_sealed(const std::string& type_name) const {
-    return type_name == "Number" || type_name == "String" || type_name == "Boolean";
 }
 
 // Verifica si el tipo existe

@@ -1,0 +1,11 @@
+type B(y) inherits A(y*2){
+    y = y;
+    foo(): Number => base() + self.y; 
+};
+
+type A(x: Number) {
+    x = x;
+    foo() => self.x;
+};
+
+let x = new B(5) in print(x.foo());

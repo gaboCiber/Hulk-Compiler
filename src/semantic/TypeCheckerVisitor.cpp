@@ -23,10 +23,10 @@ void TypeCheckerVisitor::visit(UnaryOpNode& node) {
 
     // Ahora, según el operador:
     if (node.op == "-") {
-        // Negación: solo float
+        // Negación: solo Number
         if (childT != ctx.number_type) {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere un operando de tipo float.";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere un operando de tipo Number.";
             return;
         }
         lastType = ctx.number_type;
@@ -60,19 +60,19 @@ void TypeCheckerVisitor::visit(BinOpNode& node) {
     // Ahora, según el operador:
     if (node.op == "+" || node.op == "-" || node.op == "*" ||
         node.op == "/" || node.op == "^" || node.op == "%") {
-        // Aritméticos: ambos deben ser float
+        // Aritméticos: ambos deben ser Number
         if (leftT != ctx.number_type || rightT != ctx.number_type) {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos de tipo float.";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos de tipo Number.";
             return;
         }
         lastType = ctx.number_type;
     }
     else if (node.op == ">" || node.op == "<" || node.op == ">=" || node.op == "<=") {
-        // Relacionales: ambos deben ser float, resultado bool
+        // Relacionales: ambos deben ser Number, resultado bool
         if (leftT != ctx.number_type || rightT != ctx.number_type) {
             errorFlag = true;
-            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos de tipo float.";
+            errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: operador '" + node.op + "' requiere operandos de tipo Number.";
             return;
         }
         lastType = ctx.boolean_type;
@@ -667,9 +667,20 @@ void TypeCheckerVisitor::visit(MemberAccessNode& node){
     Type* objectType = lastType;
     
     // Verifica que el atributo exista
-    auto& attributes = objectType->object_data.attributes;
+    auto current = objectType;
+    while (current)
+    {
+        auto attrs_info = current->object_data.attributes;
+        if(attrs_info.find(node.member_name) != attrs_info.end())
+        {
+            break;
+        }
 
-    lastType = attributes[node.member_name];
+        current = current->object_data.parent;
+    }
+
+    lastType = current->object_data.attributes[node.member_name];
+
 }
 
 void TypeCheckerVisitor::visit(SelfNode& node){
