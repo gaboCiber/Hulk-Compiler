@@ -246,6 +246,14 @@ void TypeCheckerVisitor::visit(FunctionNode& node) {
 }
 
 void TypeCheckerVisitor::visit(ProgramNode& node) {
+    
+    for (auto stmt : node.functions_and_types) {
+        if(auto node = dynamic_cast<TypeNode*>(stmt)){
+            type_node_map[node->name] = node;
+            heritage_map[node->name] = 0;
+        }
+    }
+    
     for (auto stmt : node.functions_and_types) {
         stmt->accept(*this);
         if(errorFlag)
@@ -463,6 +471,15 @@ void TypeCheckerVisitor::visit(TypeMember& node){
 
 void TypeCheckerVisitor::visit(TypeNode& node){
     
+    if(heritage_map[node.name] == 2)
+        return;
+    else if(heritage_map[node.name] == 1){
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Erro semántico: Herencia circular implicita relacionada con el tipo '" + node.name + "' \n";
+        return;
+    }
+
+    heritage_map[node.name] == 1;
     Type* current_type = ctx.type_registry.get_type(node.name);
 
     push_current_type(current_type);
@@ -480,6 +497,11 @@ void TypeCheckerVisitor::visit(TypeNode& node){
     // Verificar herencia
     if (node.inherits) {
         
+        auto parent_node = type_node_map[node.inherits->parent_type];
+        parent_node->accept(*this);
+        if (errorFlag) return;
+        heritage_map[node.inherits->parent_type] = 2;
+
         if (node.inherits->parent_args->size() < node.type_args->size()) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(node.line) + "] Erro semántico: Número incorrecto de argumentos para tipo padre";
@@ -499,7 +521,7 @@ void TypeCheckerVisitor::visit(TypeNode& node){
     
     ctx.popScope();
     pop_current_type();
-
+    heritage_map[node.name] == 2;
 }
 
 

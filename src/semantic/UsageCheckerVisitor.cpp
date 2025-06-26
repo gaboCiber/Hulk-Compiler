@@ -258,7 +258,7 @@ void UsageCheckerVisitor::visit(InheritsNode& node){
     if (type->is_subtype_of(current))
     {
         errorFlag = true;
-        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: herencia circular entre '" + node.parent_type + "' y " + current->name + "\n";
+        errorMsg = "[Line " + std::to_string(node.line) + "] Error semántico: herencia circular entre '" + node.parent_type + "' y '" + current->name + "' \n";
         return;
     }
 

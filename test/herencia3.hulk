@@ -1,0 +1,9 @@
+type A inherits B {
+
+};
+
+type B inherits A {
+
+};
+
+print(45);

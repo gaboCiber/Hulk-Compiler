@@ -198,6 +198,14 @@ void TypeInferenceVisitor::visit(FunctionNode& node) {
 }
 
 void TypeInferenceVisitor::visit(ProgramNode& node) {
+    
+    for (auto stmt : node.functions_and_types) {
+        if(auto node = dynamic_cast<TypeNode*>(stmt)){
+            type_node_map[node->name] = node;
+            heritage_map[node->name] = 0;
+        }
+    }
+    
     for (auto stmt : node.functions_and_types) {
         stmt->accept(*this);
         if(errorFlag)
@@ -315,12 +323,28 @@ void TypeInferenceVisitor::visit(TypeMember& node){
 
 void TypeInferenceVisitor::visit(TypeNode& node){
     
+    if(heritage_map[node.name] == 2)
+        return;
+    else if(heritage_map[node.name] == 1){
+        errorFlag = true;
+        errorMsg = "[Line " + std::to_string(node.line) + "] Erro semántico: Herencia circular implicita relacionada con el tipo '" + node.name + "' \n";
+        return;
+    }
+    
+    heritage_map[node.name] == 1;
     push_current_type(node.name);
     ctx.pushScope(node.scope);
     
     
     if(node.inherits != nullptr)
     {
+
+        auto parent_node = type_node_map[node.inherits->parent_type];
+        parent_node->accept(*this);
+        if (errorFlag) return;
+        heritage_map[node.inherits->parent_type] = 2;
+
+
         node.inherits->accept(*this);
         if(errorFlag)
                 return;
@@ -342,6 +366,7 @@ void TypeInferenceVisitor::visit(TypeNode& node){
     
     pop_current_type();
     ctx.popScope();
+    heritage_map[node.name] == 2;
 }
 
 void TypeInferenceVisitor::visit(InheritsNode& node){

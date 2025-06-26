@@ -78,4 +78,8 @@ private:
     Type* get_current_type() const {
         return current_type_stack.empty() ? nullptr : current_type_stack.top();
     }
+
+    std::unordered_map<std::string, int> heritage_map;
+    std::unordered_map<std::string, ASTNode*> type_node_map;
+
 };

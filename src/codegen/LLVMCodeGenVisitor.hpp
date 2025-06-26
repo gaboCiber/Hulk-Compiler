@@ -114,6 +114,8 @@ private:
     std::unordered_map<std::string, std::map<std::string, int>> types_method_index_map;
     std::unordered_map<std::string, std::vector<std::string>> types_methods_ordered;
 
+    std::unordered_map<std::string, int> heritage_map;
+    std::unordered_map<std::string, ASTNode*> type_node_map;
 
     
     void defineTypeContructorVariables(Type* type, std::vector<ASTNode*> arguments);

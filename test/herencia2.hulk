@@ -1,4 +1,4 @@
-type B(y) inherits A(y*2){
+type B(y: Number) inherits A(y * 10){
     y = y;
     foo(): Number => base() + self.y; 
 };

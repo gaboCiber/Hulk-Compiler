@@ -352,9 +352,17 @@ void LLVMCodeGenVisitor::visit(FunctionNode& node) {
 
 void LLVMCodeGenVisitor::visit(ProgramNode& node) {
 
+    for (auto stmt : node.functions_and_types) {
+        if(auto node = dynamic_cast<TypeNode*>(stmt)){
+            type_node_map[node->name] = node;
+        }
+    }
+
     // Segundo declarar todas las funciones
     for (auto func : node.functions_and_types)
+    {
         func->accept(*this);
+    }
 
     // Generar main implícito si hay líneas/bloques fuera de funciones
     if (!node.statements.empty()) {
@@ -880,6 +888,9 @@ void LLVMCodeGenVisitor::declareAllMethods(Type* type) {
 
 void LLVMCodeGenVisitor::visit(TypeNode& node){
     
+    if(heritage_map[node.name] == 2)
+        return;
+
     push_current_type(ctx.type_registry.get_type(node.name));
 
     types_scope[node.name] = node.scope;
@@ -890,6 +901,10 @@ void LLVMCodeGenVisitor::visit(TypeNode& node){
     }
 
     if (node.inherits) {
+        auto parent_node = type_node_map[node.inherits->parent_type];
+        parent_node->accept(*this);
+        heritage_map[node.inherits->parent_type] = 2;
+
         node.inherits->accept(*this);
     }
     
@@ -920,6 +935,7 @@ void LLVMCodeGenVisitor::visit(TypeNode& node){
     }
 
     pop_current_type();
+    heritage_map[node.name] == 2;
 }
 
 llvm::Type* LLVMCodeGenVisitor::defineTypeStruct(Type* type) {
