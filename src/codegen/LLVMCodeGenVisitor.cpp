@@ -356,7 +356,7 @@ void LLVMCodeGenVisitor::visit(ProgramNode& node) {
     for (auto func : node.functions_and_types)
         func->accept(*this);
 
-    // Opcional: generar main implícito si hay líneas/bloques fuera de funciones
+    // Generar main implícito si hay líneas/bloques fuera de funciones
     if (!node.statements.empty()) {
         llvm::FunctionType* mainType = llvm::FunctionType::get(builder.getInt32Ty(), false);
         llvm::Function* mainFunc = llvm::Function::Create(mainType, llvm::Function::ExternalLinkage, "main", module.get());
@@ -443,7 +443,7 @@ void LLVMCodeGenVisitor::visit(CallFuncNode& node) {
         //     }
         // }
 
-        llvmArgs.push_back(actualValue);
+        //llvmArgs.push_back(actualValue);
 
     }
 
@@ -1055,7 +1055,6 @@ void LLVMCodeGenVisitor::defineTypeContructorVariables(Type* type, std::vector<A
 
 void LLVMCodeGenVisitor::visit(NewNode& node) {
     
-
     Type* type = ctx.type_registry.get_type(node.type_name);
     push_current_type(type);
 
@@ -1076,6 +1075,7 @@ void LLVMCodeGenVisitor::visit(NewNode& node) {
     unsigned fieldIndex = 1;
     Type* current = type;
     while (current != nullptr) {
+
         ctx.pushScope(types_scope[current->name]);
         for (const auto& attr : current->object_data.attributes) {
             
@@ -1094,17 +1094,21 @@ void LLVMCodeGenVisitor::visit(NewNode& node) {
             fieldIndex++;
         }
 
+
         auto old = current;
         current = current->object_data.parent;
 
+
         if(current)
         {
+    
             ctx.pushScope(types_scope[old->name]);
             defineTypeContructorVariables(current, types_inherits_args[old->name]);
             ctx.popScope();
         }
 
         ctx.popScope();
+
     }
 
     result = object;

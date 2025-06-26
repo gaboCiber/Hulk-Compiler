@@ -200,17 +200,17 @@ void TypeCheckerVisitor::visit(LetInNode& node) {
 
 void TypeCheckerVisitor::visit(FunctionNode& node) {
 
-    
     ctx.pushScope(node.scope);
     
     node.block->accept(*this);
+    if(errorFlag)
+        return;
 
     Type* infered = lastType;
     FunctionInfo* info = ctx.lookupFunction(node.name);
 
-    if(!info->dinamicReturnType)
+    if(! info->dinamicReturnType)
         info->dinamicReturnType = infered;
-
     else if(infered != info->dinamicReturnType)
     {
         errorFlag = true;
@@ -225,7 +225,7 @@ void TypeCheckerVisitor::visit(FunctionNode& node) {
             return;
     }
     
-     if(!node.declared_type.empty())
+    if(!node.declared_type.empty())
     {
         Type* expected = ctx.type_registry.get_type(node.declared_type);
         if(!info->dinamicReturnType->is_subtype_of(expected))
@@ -306,7 +306,7 @@ void TypeCheckerVisitor::visit(CallFuncNode& node){
         }
     }
 
-    lastType = info->staticReturnType;
+    lastType = info->staticReturnType ? info->staticReturnType : info->dinamicReturnType;
 }
 
 void TypeCheckerVisitor::checkBuiltinCall(CallFuncNode& node) {
@@ -384,10 +384,12 @@ void TypeCheckerVisitor::visit(WhileNode& node) {
 }
 
 void TypeCheckerVisitor::visit(IfNode& node) {
+
     Type* expectedType = node.returnType;
     
     for(auto& pair: node.getBranches()){
         // Verificar condición
+
         pair.first->accept(*this);
         if (errorFlag) return;
         
@@ -398,6 +400,7 @@ void TypeCheckerVisitor::visit(IfNode& node) {
         }
 
         // Verificar cuerpo
+
         pair.second->accept(*this);
         if (errorFlag) return;
         
@@ -406,17 +409,24 @@ void TypeCheckerVisitor::visit(IfNode& node) {
             errorMsg = "[Line " + std::to_string(pair.second->line) + "] El bloque debe retornar '" + expectedType->name + "' o subtipo";
             return;
         }
+
+
     }
 
     if (ASTNode* br = node.getElseBranch()) {
+
         br->accept(*this);
-        if (errorFlag) return;
+        if (errorFlag) 
+            return;
         
+
         if (!lastType->is_subtype_of(expectedType)) {
             errorFlag = true;
             errorMsg = "[Line " + std::to_string(br->line) + "] El bloque else debe retornar '" + expectedType->name + "' o subtipo";
             return;
         }
+
+
     }
 
     lastType = expectedType;

@@ -1,0 +1,13 @@
+function fac(x) => 
+    if (x == 0)
+        1
+    else
+        x*fac(x-1);
+
+function fib(x) =>
+    if (x == 0 | x == 1)
+        1
+    else
+        fib(x-1) + fib(x-2);
+
+print(fib(5) * fac(5));

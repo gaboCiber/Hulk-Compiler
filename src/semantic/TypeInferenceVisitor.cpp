@@ -169,7 +169,6 @@ void TypeInferenceVisitor::visit(FunctionNode& node) {
     node.block->accept(*this);
     
     Type* inferedType = lastType;
-
     checkVariableType = true;
     for (auto& arg: node.args)
     {

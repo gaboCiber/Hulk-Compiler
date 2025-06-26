@@ -1,7 +1,13 @@
 type B inherits A {
+    x = 10;
+    foo() => "B" @@ self.x;
 };
 
 type A {
+    x = 5;
+    foo() => "A" @@ self.x;
 };
 
-let x = new A() in print("PAN");
+let x = new A() in print(x.foo());
+let x = new B() in print(x.foo());
+
