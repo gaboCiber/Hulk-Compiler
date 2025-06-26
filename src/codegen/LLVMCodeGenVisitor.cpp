@@ -303,7 +303,11 @@ void LLVMCodeGenVisitor::visit(FunctionNode& node) {
     }
 
     // 3. Crear tipo de retorno real
-    llvm::Type* retTy = info->staticReturnType->llvm_type;
+    //llvm::Type* retTy = info->staticReturnType->llvm_type;
+    llvm::Type* retTy = info->staticReturnType->kind == Type::Kind::OBJECT
+        ? llvm::PointerType::getUnqual(info->staticReturnType->llvm_type)
+        : info->staticReturnType->llvm_type;
+
     llvm::FunctionType* funcType = llvm::FunctionType::get(retTy, argTypes, false);
 
     // 4. Crear la función en el módulo
@@ -406,7 +410,7 @@ void LLVMCodeGenVisitor::visit(CallFuncNode& node) {
         Type* expectedType = simInfo->staticType;
         ctx.popScope();
 
-        // Si actualValue es un alloca (%p), lo cargamos (load)
+        // // Si actualValue es un alloca (%p), lo cargamos (load)
         if (actualValue->getType()->isPointerTy() &&
             actualValue->getType()->getPointerElementType()->isPointerTy() &&
             expectedType->kind == Type::Kind::OBJECT) 
@@ -421,6 +425,26 @@ void LLVMCodeGenVisitor::visit(CallFuncNode& node) {
         }
 
         llvmArgs.push_back(actualValue);
+        
+        // Si el argumento es un tipo objeto (user-defined), verificar si es necesario cargarlo
+        
+        // if (expectedType->kind == Type::Kind::OBJECT) {
+        //     llvm::Type* expectedPtrTy = llvm::PointerType::getUnqual(expectedType->llvm_type);
+
+        //     // Si actualValue es una alloca (i.e., puntero a puntero), entonces load
+        //     if (actualValue->getType()->isPointerTy() &&
+        //         actualValue->getType()->getPointerElementType()->isPointerTy()) {
+        //         actualValue = builder.CreateLoad(actualValue->getType()->getPointerElementType(), actualValue, "loaded_arg");
+        //     }
+
+        //     // Si el tipo actual no es del tipo esperado, hacer bitcast
+        //     if (actualValue->getType() != expectedPtrTy) {
+        //         actualValue = builder.CreateBitCast(actualValue, expectedPtrTy, "cast_arg");
+        //     }
+        // }
+
+        llvmArgs.push_back(actualValue);
+
     }
 
     // 4. Generar la llamada
@@ -1183,20 +1207,105 @@ void LLVMCodeGenVisitor::visit(BaseNode& node) {
     result = builder.CreateCall(parentFunc, args, "base_call");
 }
 
+// void LLVMCodeGenVisitor::visit(MethodCallNode& node) {
+//     // 1. Evaluar el objeto receptor
+//     node.object->accept(*this);
+//     llvm::Value* objectPtr = result;
+
+//     // 2. Cargar si no es 'self'
+//     bool needsLoad = !dynamic_cast<SelfNode*>(node.object);
+//     llvm::Value* loadedPtr = objectPtr;
+//     if (needsLoad) {
+//         loadedPtr = builder.CreateLoad(
+//             llvm::PointerType::getUnqual(node.object_returnType->llvm_type),
+//             objectPtr,
+//             "obj_ptr"
+//         );
+//     }
+
+//     // 3. Obtener vtable
+//     llvm::StructType* vtableTy = node.object_returnType->vtable_type;
+//     llvm::PointerType* vtablePtrTy = llvm::PointerType::getUnqual(vtableTy);
+//     llvm::Value* vtableField = builder.CreateStructGEP(
+//         node.object_returnType->llvm_type,
+//         loadedPtr,
+//         0,
+//         "vtable_ptr"
+//     );
+//     llvm::Value* vtablePtr = builder.CreateLoad(vtablePtrTy, vtableField, "vtable");
+
+//     // 4. Acceder al método desde la vtable
+//     std::string typeName = node.object_returnType->name;
+//     std::string methodName = node.getMethodName();
+//     int methodIndex = types_method_index_map[typeName][methodName];
+
+//     llvm::Value* methodSlotPtr = builder.CreateStructGEP(
+//         vtableTy,
+//         vtablePtr,
+//         methodIndex,
+//         "method_ptr"
+//     );
+//     llvm::Value* rawMethodPtr = builder.CreateLoad(
+//         methodSlotPtr->getType()->getPointerElementType(),
+//         methodSlotPtr,
+//         "method_loaded"
+//     );
+
+//     // 5. Resolver tipo original del método
+//     auto [ownerType, _] = resolveMethod(node.object_returnType, methodName);
+//     if (!ownerType) {
+//         llvm::errs() << "Error: método '" << methodName << "' no encontrado en jerarquía de tipo '" << typeName << "'\n";
+//         exit(1);
+//     }
+
+//     std::string fullMethodName = ownerType->name + "." + methodName;
+//     llvm::Function* realFn = module->getFunction(fullMethodName);
+//     llvm::FunctionType* originalFnType = realFn->getFunctionType();
+
+//     // 6. Crear nuevo FunctionType con tipo dinámico como primer parámetro
+//     std::vector<llvm::Type*> paramTypes;
+//     paramTypes.push_back(loadedPtr->getType());  // dinámico: %PolarPoint*
+//     for (unsigned i = 1; i < originalFnType->getNumParams(); ++i) {
+//         paramTypes.push_back(originalFnType->getParamType(i));
+//     }
+
+//     llvm::FunctionType* adaptedFnType = llvm::FunctionType::get(
+//         originalFnType->getReturnType(),
+//         paramTypes,
+//         false
+//     );
+
+//     // 7. Bitcast al nuevo tipo adaptado
+//     llvm::Value* methodFn = builder.CreateBitCast(
+//         rawMethodPtr,
+//         llvm::PointerType::getUnqual(adaptedFnType),
+//         "method_fn_casted"
+//     );
+
+//     // 8. Preparar argumentos
+//     std::vector<llvm::Value*> args;
+//     args.push_back(loadedPtr);
+//     for (auto& arg : node.arguments) {
+//         arg->accept(*this);
+//         args.push_back(result);
+//     }
+
+//     // 9. Llamar a la función
+//     result = builder.CreateCall(adaptedFnType, methodFn, args, "dyn_call");
+// }
+
 void LLVMCodeGenVisitor::visit(MethodCallNode& node) {
     // 1. Evaluar el objeto receptor
     node.object->accept(*this);
     llvm::Value* objectPtr = result;
 
-    // 2. Cargar si no es 'self'
-    bool needsLoad = !dynamic_cast<SelfNode*>(node.object);
+    // 2. Determinar si hay que hacer load
     llvm::Value* loadedPtr = objectPtr;
-    if (needsLoad) {
-        loadedPtr = builder.CreateLoad(
-            llvm::PointerType::getUnqual(node.object_returnType->llvm_type),
-            objectPtr,
-            "obj_ptr"
-        );
+    llvm::Type* expectedPtrTy = llvm::PointerType::getUnqual(node.object_returnType->llvm_type);
+
+    // Solo hacemos load si objectPtr es una variable (por ejemplo, alloca)
+    if (!dynamic_cast<SelfNode*>(node.object) && llvm::isa<llvm::AllocaInst>(objectPtr)) {
+        loadedPtr = builder.CreateLoad(expectedPtrTy, objectPtr, "obj_ptr");
     }
 
     // 3. Obtener vtable
@@ -1240,7 +1349,7 @@ void LLVMCodeGenVisitor::visit(MethodCallNode& node) {
 
     // 6. Crear nuevo FunctionType con tipo dinámico como primer parámetro
     std::vector<llvm::Type*> paramTypes;
-    paramTypes.push_back(loadedPtr->getType());  // dinámico: %PolarPoint*
+    paramTypes.push_back(loadedPtr->getType()); // puntero a objeto dinámico
     for (unsigned i = 1; i < originalFnType->getNumParams(); ++i) {
         paramTypes.push_back(originalFnType->getParamType(i));
     }
@@ -1251,14 +1360,14 @@ void LLVMCodeGenVisitor::visit(MethodCallNode& node) {
         false
     );
 
-    // 7. Bitcast al nuevo tipo adaptado
+    // 7. Bitcast
     llvm::Value* methodFn = builder.CreateBitCast(
         rawMethodPtr,
         llvm::PointerType::getUnqual(adaptedFnType),
         "method_fn_casted"
     );
 
-    // 8. Preparar argumentos
+    // 8. Argumentos
     std::vector<llvm::Value*> args;
     args.push_back(loadedPtr);
     for (auto& arg : node.arguments) {
@@ -1266,6 +1375,8 @@ void LLVMCodeGenVisitor::visit(MethodCallNode& node) {
         args.push_back(result);
     }
 
-    // 9. Llamar a la función
+    // 9. Llamar al método
     result = builder.CreateCall(adaptedFnType, methodFn, args, "dyn_call");
+
+
 }
