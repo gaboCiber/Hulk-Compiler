@@ -847,8 +847,6 @@ llvm::Constant* LLVMCodeGenVisitor::createVTableInstance(Type* type) {
     return llvm::ConstantStruct::get(vtableTy, methodPtrs);
 }
 
-
-
 llvm::GlobalVariable* LLVMCodeGenVisitor::defineVTableGlobal(Type* type, llvm::Constant* vtableInstance) {
     
     return new llvm::GlobalVariable(
@@ -884,8 +882,6 @@ void LLVMCodeGenVisitor::declareAllMethods(Type* type) {
     }
 }
 
-
-
 void LLVMCodeGenVisitor::visit(TypeNode& node){
     
     if(heritage_map[node.name] == 2)
@@ -895,6 +891,8 @@ void LLVMCodeGenVisitor::visit(TypeNode& node){
 
     types_scope[node.name] = node.scope;
     
+
+
     for(auto n: *node.type_args)
     {
         types_constructor_names[node.name].push_back(n->name);
@@ -1036,7 +1034,6 @@ void LLVMCodeGenVisitor::visit(MethodNode& node) {
 
 }
 
-
 void LLVMCodeGenVisitor::defineTypeContructorVariables(Type* type, std::vector<ASTNode*> arguments){
 
     size_t i = 0;
@@ -1134,46 +1131,85 @@ void LLVMCodeGenVisitor::visit(NewNode& node) {
 }
 
 void LLVMCodeGenVisitor::visit(MemberAccessNode& node) {
+//     if (dynamic_cast<SelfNode*>(node.object)) {
+//         node.object->accept(*this);
+//         llvm::Value* self = result;
+
+//         // Obtener tipo del objeto
+//         Type* objectType = get_current_type();
+        
+//         // Buscar el atributo en la jerarquía de tipos
+//         int fieldIndex = 1;
+//         bool found = false;
+//         Type* current = objectType;
+        
+//         while (current && !found) {
+//             for (const auto& attr : current->object_data.attributes) {
+//                 if (attr.first == node.member_name) {
+//                     found = true;
+//                     break;
+//                 }
+//                 fieldIndex++;
+//             }
+//             if (!found) {
+//                 current = current->object_data.parent;
+//                 //fieldIndex = 0;
+//             }
+//         }
+
+//         // Obtener puntero al campo directamente desde el puntero self
+//         llvm::StructType* structTy = llvm::cast<llvm::StructType>(objectType->llvm_type);
+//         llvm::Value* fieldPtr = builder.CreateStructGEP(structTy, self, fieldIndex, node.member_name);
+        
+//         if (isAssignmentTarget) {
+//             // Para asignación: devolver solo el puntero
+//             result = fieldPtr;
+//         } else {
+//             // Para acceso normal: devolver el valor cargado
+//             llvm::Type* elemTy = fieldPtr->getType()->getPointerElementType();
+//             result = builder.CreateLoad(elemTy, fieldPtr, "load_" + node.member_name);
+//         }
+//     }
+
     if (dynamic_cast<SelfNode*>(node.object)) {
         node.object->accept(*this);
         llvm::Value* self = result;
 
-        // Obtener tipo del objeto
-        Type* objectType = get_current_type();
-        
-        // Buscar el atributo en la jerarquía de tipos
-        int fieldIndex = 1;
-        bool found = false;
-        Type* current = objectType;
-        
-        while (current && !found) {
-            for (const auto& attr : current->object_data.attributes) {
-                if (attr.first == node.member_name) {
-                    found = true;
-                    break;
-                }
-                fieldIndex++;
-            }
-            if (!found) {
-                current = current->object_data.parent;
-                //fieldIndex = 0;
-            }
-        }
+        Type* objectType = get_current_type(); // ya debes tener esto implementado
+        int fieldIndex = getStructFieldIndex(objectType, node.member_name);
 
-        // Obtener puntero al campo directamente desde el puntero self
         llvm::StructType* structTy = llvm::cast<llvm::StructType>(objectType->llvm_type);
         llvm::Value* fieldPtr = builder.CreateStructGEP(structTy, self, fieldIndex, node.member_name);
-        
+
         if (isAssignmentTarget) {
-            // Para asignación: devolver solo el puntero
             result = fieldPtr;
         } else {
-            // Para acceso normal: devolver el valor cargado
             llvm::Type* elemTy = fieldPtr->getType()->getPointerElementType();
             result = builder.CreateLoad(elemTy, fieldPtr, "load_" + node.member_name);
         }
     }
 }
+
+
+int LLVMCodeGenVisitor::getStructFieldIndex(Type* type, const std::string& name) {
+    int index = 1; // comenzamos en 1 porque el campo 0 es el puntero a vtable
+
+    std::vector<Type*> hierarchy;
+    for (Type* current = type; current; current = current->object_data.parent)
+        hierarchy.push_back(current);
+
+    // Recorrer desde el ancestro más lejano hacia el hijo
+    for (auto it = hierarchy.rbegin(); it != hierarchy.rend(); ++it) {
+        for (const auto& attr : (*it)->object_data.attributes) {
+            if (attr.first == name)
+                return index;
+            index++;
+        }
+    }
+
+}
+
+
 
 void LLVMCodeGenVisitor::visit(SelfNode& node) {   
 
@@ -1226,93 +1262,6 @@ void LLVMCodeGenVisitor::visit(BaseNode& node) {
 
     result = builder.CreateCall(parentFunc, args, "base_call");
 }
-
-// void LLVMCodeGenVisitor::visit(MethodCallNode& node) {
-//     // 1. Evaluar el objeto receptor
-//     node.object->accept(*this);
-//     llvm::Value* objectPtr = result;
-
-//     // 2. Cargar si no es 'self'
-//     bool needsLoad = !dynamic_cast<SelfNode*>(node.object);
-//     llvm::Value* loadedPtr = objectPtr;
-//     if (needsLoad) {
-//         loadedPtr = builder.CreateLoad(
-//             llvm::PointerType::getUnqual(node.object_returnType->llvm_type),
-//             objectPtr,
-//             "obj_ptr"
-//         );
-//     }
-
-//     // 3. Obtener vtable
-//     llvm::StructType* vtableTy = node.object_returnType->vtable_type;
-//     llvm::PointerType* vtablePtrTy = llvm::PointerType::getUnqual(vtableTy);
-//     llvm::Value* vtableField = builder.CreateStructGEP(
-//         node.object_returnType->llvm_type,
-//         loadedPtr,
-//         0,
-//         "vtable_ptr"
-//     );
-//     llvm::Value* vtablePtr = builder.CreateLoad(vtablePtrTy, vtableField, "vtable");
-
-//     // 4. Acceder al método desde la vtable
-//     std::string typeName = node.object_returnType->name;
-//     std::string methodName = node.getMethodName();
-//     int methodIndex = types_method_index_map[typeName][methodName];
-
-//     llvm::Value* methodSlotPtr = builder.CreateStructGEP(
-//         vtableTy,
-//         vtablePtr,
-//         methodIndex,
-//         "method_ptr"
-//     );
-//     llvm::Value* rawMethodPtr = builder.CreateLoad(
-//         methodSlotPtr->getType()->getPointerElementType(),
-//         methodSlotPtr,
-//         "method_loaded"
-//     );
-
-//     // 5. Resolver tipo original del método
-//     auto [ownerType, _] = resolveMethod(node.object_returnType, methodName);
-//     if (!ownerType) {
-//         llvm::errs() << "Error: método '" << methodName << "' no encontrado en jerarquía de tipo '" << typeName << "'\n";
-//         exit(1);
-//     }
-
-//     std::string fullMethodName = ownerType->name + "." + methodName;
-//     llvm::Function* realFn = module->getFunction(fullMethodName);
-//     llvm::FunctionType* originalFnType = realFn->getFunctionType();
-
-//     // 6. Crear nuevo FunctionType con tipo dinámico como primer parámetro
-//     std::vector<llvm::Type*> paramTypes;
-//     paramTypes.push_back(loadedPtr->getType());  // dinámico: %PolarPoint*
-//     for (unsigned i = 1; i < originalFnType->getNumParams(); ++i) {
-//         paramTypes.push_back(originalFnType->getParamType(i));
-//     }
-
-//     llvm::FunctionType* adaptedFnType = llvm::FunctionType::get(
-//         originalFnType->getReturnType(),
-//         paramTypes,
-//         false
-//     );
-
-//     // 7. Bitcast al nuevo tipo adaptado
-//     llvm::Value* methodFn = builder.CreateBitCast(
-//         rawMethodPtr,
-//         llvm::PointerType::getUnqual(adaptedFnType),
-//         "method_fn_casted"
-//     );
-
-//     // 8. Preparar argumentos
-//     std::vector<llvm::Value*> args;
-//     args.push_back(loadedPtr);
-//     for (auto& arg : node.arguments) {
-//         arg->accept(*this);
-//         args.push_back(result);
-//     }
-
-//     // 9. Llamar a la función
-//     result = builder.CreateCall(adaptedFnType, methodFn, args, "dyn_call");
-// }
 
 void LLVMCodeGenVisitor::visit(MethodCallNode& node) {
     // 1. Evaluar el objeto receptor

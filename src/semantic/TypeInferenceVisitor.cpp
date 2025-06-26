@@ -389,6 +389,7 @@ void TypeInferenceVisitor::visit(AttributeNode& node){
 
     if (!node.declared_type.empty())
     {
+
         Type* declared = ctx.type_registry.get_type(node.declared_type);
         if (!declared) {
             errorFlag = true;

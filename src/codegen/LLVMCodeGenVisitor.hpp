@@ -79,7 +79,7 @@ public:
     void visit(MethodNode& node) override;
     void visit(NewNode& node) override;
     void visit(MemberAccessNode& node) override;
-    void visit(SelfNode& node) override;
+    void visit(SelfNode &node) override;
     void visit(BaseNode& node) override;
     void visit(MethodCallNode& node) override;
     void visit(IsNode& node) override;
@@ -119,6 +119,7 @@ private:
 
     
     void defineTypeContructorVariables(Type* type, std::vector<ASTNode*> arguments);
+    int getStructFieldIndex(Type *type, const std::string &name);
 
     std::stack<Type*> current_type_stack;
     
