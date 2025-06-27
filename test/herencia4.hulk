@@ -1,9 +1,0 @@
-type A  {
-    x : B = new B(); 
-};
-
-type B  {
-    y : A = new A();
-};
-
-print(45);

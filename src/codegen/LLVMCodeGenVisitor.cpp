@@ -729,7 +729,9 @@ void LLVMCodeGenVisitor::visit(IsNode& node) {
 
     // Recuperamos el tipo dinámico en tiempo de compilación
     Type* dynamicType = info->dynamicType;
-    Type* checkType = info->staticType; //ctx.type_registry.get_type(node.type_name);
+    Type* checkType = ctx.type_registry.get_type(node.type_name);
+
+    std::cout<<dynamicType->name << " " << checkType->name << std::endl;
 
     // Verificamos subtipado estructural en tiempo de compilación
     bool isSubtype = dynamicType->is_subtype_of(checkType);

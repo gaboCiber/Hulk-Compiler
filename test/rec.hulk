@@ -10,4 +10,8 @@ function fib(x) =>
     else
         fib(x-1) + fib(x-2);
 
-print(fib(5) * fac(5));
+let x = 5 , y = fac(x) , z = fib(x) in {
+    print(y);
+    print(z);
+    print(y*z);
+};
